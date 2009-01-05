@@ -108,6 +108,7 @@ static unsigned long mliconv_deserialize(void * dst)
 CAMLprim value mliconv_open(value tocodev, value fromcodev)
 {
 	CAMLparam2(tocodev, fromcodev);
+	CAMLlocal1(result);
 	const char* tocode = String_val(tocodev);
 	size_t to_len = caml_string_length(tocodev);
 	const char* fromcode = String_val(fromcodev);
@@ -118,7 +119,7 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 		strcat(strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "), fromcode);;
 		caml_failwith(message);
 	}
-	value result = alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
+	result = alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
 	struct mliconv_t *internal = mliconv_val(result);
 	internal->handle = handle;
 	internal->tocode = strdup(iconv_canonicalize(tocode));
@@ -129,6 +130,7 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 CAMLprim value mliconv_convert(value conv, value source)
 {
 	CAMLparam2(conv, source);
+	CAMLlocal1(result);
 	struct mliconv_t *internal = mliconv_val(conv);
 	const char *s = String_val(source);
 	size_t s_len = caml_string_length(source);
@@ -151,7 +153,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 		}
 	}
 	size_t result_len = d_current - d;
-	value result = caml_alloc_string(result_len);
+	result = caml_alloc_string(result_len);
 	memcpy(String_val(result), d, result_len);
 	free(d);
 	CAMLreturn(result);
