@@ -158,3 +158,21 @@ CAMLprim value mliconv_convert(value conv, value source)
 	free(d);
 	CAMLreturn(result);
 }
+
+CAMLprim value mliconv_tocode(value conv)
+{
+	CAMLparam1(conv);
+	CAMLlocal1(result);
+	struct mliconv_t *internal = mliconv_val(conv);
+	result = caml_copy_string(internal->tocode);
+	CAMLreturn(result);
+}
+
+CAMLprim value mliconv_fromcode(value conv)
+{
+	CAMLparam1(conv);
+	CAMLlocal1(result);
+	struct mliconv_t *internal = mliconv_val(conv);
+	result = caml_copy_string(internal->fromcode);
+	CAMLreturn(result);
+}
