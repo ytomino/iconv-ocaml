@@ -34,7 +34,11 @@ static struct custom_operations iconv_ops = {
 	mliconv_compare,
 	mliconv_hash,
 	mliconv_serialize,
-	mliconv_deserialize};
+	mliconv_deserialize
+#if defined(custom_compare_ext_default)
+	, custom_compare_ext_default
+#endif
+	};
 
 static void mliconv_finalize(value data)
 {
