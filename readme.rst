@@ -12,6 +12,38 @@ Depending tools and libraries
 libiconv (GNU version)
  http://www.gnu.org/software/libiconv/
 
+How to make
+-----------
+
+Install
++++++++
+
+::
+
+ make install PREFIX=/usr/local
+
+Specify your preferred directory to ``PREFIX``.
+The libraries would be installed into ``$PREFIX/lib/ocaml`` (default is
+``ocamlc -where``).
+
+If iconv is not installed in the default search path, specify the directory
+containing iconv to ``WITH_ICONV``.
+``$WITH_ICONV/include`` and ``$WITH_ICONV/lib`` would be used.
+
+Uninstall
++++++++++
+
+::
+
+ make uninstall PREFIX=/usr/local
+
+Build examples
+++++++++++++++
+
+::
+
+ make -C examples
+
 License
 -------
 
