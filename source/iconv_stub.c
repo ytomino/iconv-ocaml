@@ -29,16 +29,12 @@ static void mliconv_serialize(value v, unsigned long * wsize_32, unsigned long *
 static unsigned long mliconv_deserialize(void * dst);
 
 static struct custom_operations iconv_ops = {
-	"jp.halfmoon.panathenaia.iconv",
-	mliconv_finalize,
-	mliconv_compare,
-	mliconv_hash,
-	mliconv_serialize,
-	mliconv_deserialize
-#if defined(custom_compare_ext_default)
-	, custom_compare_ext_default
-#endif
-	};
+	.identifier = "jp.halfmoon.panathenaia.iconv",
+	.finalize = mliconv_finalize,
+	.compare = mliconv_compare,
+	.hash = mliconv_hash,
+	.serialize = mliconv_serialize,
+	.deserialize = mliconv_deserialize};
 
 static void mliconv_finalize(value data)
 {
