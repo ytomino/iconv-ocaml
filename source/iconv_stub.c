@@ -25,8 +25,9 @@ static inline struct mliconv_t *mliconv_val(value data)
 static void mliconv_finalize(value r);
 static int mliconv_compare(value left, value right);
 static long mliconv_hash(value data);
-static void mliconv_serialize(value v, unsigned long * wsize_32, unsigned long * wsize_64);
-static unsigned long mliconv_deserialize(void * dst);
+static void mliconv_serialize(
+	value v, unsigned long *wsize_32, unsigned long *wsize_64);
+static unsigned long mliconv_deserialize(void *dst);
 
 static struct custom_operations iconv_ops = {
 	.identifier = "jp.halfmoon.panathenaia.iconv",
@@ -66,7 +67,8 @@ static long mliconv_hash(value data)
 	CAMLreturn(result);
 }
 
-static void mliconv_serialize(value v, unsigned long * wsize_32, unsigned long * wsize_64)
+static void mliconv_serialize(
+	value v, unsigned long *wsize_32, unsigned long *wsize_64)
 {
 	CAMLparam1(v);
 	*wsize_32 = 4 * 3;
@@ -81,7 +83,7 @@ static void mliconv_serialize(value v, unsigned long * wsize_32, unsigned long *
 	CAMLreturn0;
 }
 
-static unsigned long mliconv_deserialize(void * dst)
+static unsigned long mliconv_deserialize(void *dst)
 {
 	CAMLparam0();
 	size_t to_len = deserialize_uint_4();
@@ -93,7 +95,9 @@ static unsigned long mliconv_deserialize(void * dst)
 	iconv_t handle = iconv_open(tocode, fromcode);
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
-		strcat(strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "), fromcode);;
+		strcat(
+			strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "),
+			fromcode);
 		free(tocode);
 		free(fromcode);
 		caml_failwith(message);
@@ -109,14 +113,16 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 {
 	CAMLparam2(tocodev, fromcodev);
 	CAMLlocal1(result);
-	const char* tocode = String_val(tocodev);
+	const char *tocode = String_val(tocodev);
 	size_t to_len = caml_string_length(tocodev);
-	const char* fromcode = String_val(fromcodev);
+	const char *fromcode = String_val(fromcodev);
 	size_t from_len = caml_string_length(fromcodev);
 	iconv_t handle = iconv_open(tocode, fromcode);
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
-		strcat(strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "), fromcode);;
+		strcat(
+			strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "),
+			fromcode);
 		caml_failwith(message);
 	}
 	result = alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
