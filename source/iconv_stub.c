@@ -11,6 +11,17 @@
 #include <iconv.h>
 #include <string.h>
 
+/* Tag_some/Val_none are added since OCaml 4.12 */
+
+#if !defined(Tag_some)
+#define Tag_some 0
+#endif
+#if !defined(Val_none)
+#define Val_none Val_int(0)
+#endif
+
+/* custom data */
+
 struct mliconv_t {
 	iconv_t handle;
 	char *tocode;
@@ -108,6 +119,28 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->fromcode = fromcode;
 	CAMLreturn(sizeof(struct mliconv_t));
 }
+
+/* version functions */
+
+CAMLprim value mliconv_get_version_opt(void)
+{
+	CAMLparam0();
+#if defined(_LIBICONV_VERSION)
+	CAMLlocal2(val_result, val_tuple);
+	int version = _libiconv_version;
+	val_tuple = caml_alloc_tuple(2);
+	Store_field(val_tuple, 0, Val_int(version >> 8)); /* major */
+	Store_field(val_tuple, 1, Val_int(version & 0xFF)); /* minor */
+	val_result = caml_alloc_small(1, Tag_some);
+	Store_field(val_result, 0, val_tuple);
+#else
+	CAMLlocal1(val_result);
+	val_result = Val_none;
+#endif
+	CAMLreturn(val_result);
+}
+
+/* converting functions */
 
 CAMLprim value mliconv_open(value tocodev, value fromcodev)
 {
