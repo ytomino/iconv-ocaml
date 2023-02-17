@@ -6,11 +6,17 @@ What's this?
 
 Objective-Caml binding to the International Codeset Conversion Library.
 
-Depending tools and libraries
------------------------------
+Prerequisites
+-------------
 
-libiconv (GNU version)
+OCaml >= 4.08
+ https://ocaml.org/
+libiconv (Citrus version)
+ https://wiki.freebsd.org/G%C3%A1borSoC2009
+Or libiconv (GNU version) >= 1.11
  http://www.gnu.org/software/libiconv/
+Or glibc >= 2.24
+ https://www.gnu.org/software/libc/
 
 How to make
 -----------
