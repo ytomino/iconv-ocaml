@@ -122,8 +122,13 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 	result = alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
 	struct mliconv_t *internal = mliconv_val(result);
 	internal->handle = handle;
+#if defined(__GNU_LIBRARY__) && !defined(_LIBICONV_VERSION)
+	internal->tocode = strdup(tocode);
+	internal->fromcode = strdup(fromcode);
+#else
 	internal->tocode = strdup(iconv_canonicalize(tocode));
 	internal->fromcode = strdup(iconv_canonicalize(fromcode));
+#endif
 	CAMLreturn(result);
 }
 

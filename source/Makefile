@@ -18,9 +18,12 @@ endif
 OCAMLCFLAGS=-w +a
 CFLAGS=$(WIFLAGS) -Wall -Wextra -Wno-unused-result
 
-CCLIB=$(addprefix -cclib ,$(WLFLAGS) -liconv)
 LDFLAGS=$(WLFLAGS)
-LDLIB=-liconv
+LDLIB=
+ifeq ($(findstring linux-gnu,$(TARGET)),)
+ LDLIB+=-liconv
+endif
+CCLIB=$(addprefix -cclib ,$(LDFLAGS) $(LDLIB))
 
 include Makefile.rules
 
