@@ -24,7 +24,7 @@ BUILDDIR=$(TARGET)$(BUILDSUFFIX)
 ICONV_BUILDDIR=$(BUILDDIR)/iconv$(BUILDSUFFIX)
 
 EXAMPLES=$(basename $(wildcard *.ml))
-TESTS=$(filter test%,$(EXAMPLES))
+TESTS=$(filter test_%,$(EXAMPLES))
 
 .PHONY: all check interacitve clean $(TESTS)
 
