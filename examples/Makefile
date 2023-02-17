@@ -18,6 +18,7 @@ OCAMLOPT=$(if $(OCAMLC),$(OCAMLC:c=opt),$(PROGRAMPREFIX)ocamlopt)
 RLWRAP?=
 
 OCAMLCFLAGS=
+SUPPORT_SERIALIZATION=1
 
 BUILDSUFFIX=.noindex
 BUILDDIR=$(TARGET)$(BUILDSUFFIX)
@@ -58,7 +59,8 @@ interactive: $(BUILDDIR)/iconv.cma
 $(BUILDDIR)/iconv.cma $(BUILDDIR)/iconv.cmxa&: ../source/iconv*
 	$(MAKE) -C ../source install \
 		BUILDDIR=$(abspath $(ICONV_BUILDDIR)) \
-		INSTALLDIR=$(abspath $(BUILDDIR))
+		INSTALLDIR=$(abspath $(BUILDDIR)) \
+		SUPPORT_SERIALIZATION=$(SUPPORT_SERIALIZATION)
 
 $(BINLN):
 	ln -s $(BUILDDIR) $@

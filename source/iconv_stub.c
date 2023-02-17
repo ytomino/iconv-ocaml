@@ -36,17 +36,24 @@ static inline struct mliconv_t *mliconv_val(value data)
 static void mliconv_finalize(value r);
 static int mliconv_compare(value left, value right);
 static long mliconv_hash(value data);
+#if defined(SUPPORT_SERIALIZATION)
 static void mliconv_serialize(
 	value v, unsigned long *wsize_32, unsigned long *wsize_64);
 static unsigned long mliconv_deserialize(void *dst);
+#endif
 
 static struct custom_operations iconv_ops = {
 	.identifier = "jp.halfmoon.panathenaia.iconv",
 	.finalize = mliconv_finalize,
 	.compare = mliconv_compare,
 	.hash = mliconv_hash,
+#if defined(SUPPORT_SERIALIZATION)
 	.serialize = mliconv_serialize,
 	.deserialize = mliconv_deserialize};
+#else
+	.serialize = custom_serialize_default,
+	.deserialize = custom_deserialize_default};
+#endif
 
 static void mliconv_finalize(value data)
 {
@@ -77,6 +84,8 @@ static long mliconv_hash(value data)
 	long result = (strlen(internal->tocode) << 4) + strlen(internal->fromcode);
 	CAMLreturn(result);
 }
+
+#if defined(SUPPORT_SERIALIZATION)
 
 static void mliconv_serialize(
 	value v, unsigned long *wsize_32, unsigned long *wsize_64)
@@ -119,6 +128,8 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->fromcode = fromcode;
 	CAMLreturn(sizeof(struct mliconv_t));
 }
+
+#endif
 
 /* version functions */
 

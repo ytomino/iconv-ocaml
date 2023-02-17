@@ -25,6 +25,11 @@ ifeq ($(findstring linux-gnu,$(TARGET)),)
 endif
 CCLIB=$(addprefix -cclib ,$(LDFLAGS) $(LDLIB))
 
+SUPPORT_SERIALIZATION=
+ifneq ($(SUPPORT_SERIALIZATION),)
+	CFLAGS+=-DSUPPORT_SERIALIZATION
+endif
+
 include Makefile.rules
 
 $(BUILDDIR)/iconv_pp.cmo: $(BUILDDIR)/iconv.cmi
