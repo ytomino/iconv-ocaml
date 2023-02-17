@@ -136,7 +136,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 	CAMLparam2(conv, source);
 	CAMLlocal1(result);
 	struct mliconv_t *internal = mliconv_val(conv);
-	/* const */ char *s = String_val(source);
+	/* const */ char *s = (char *)String_val(source);
 	size_t s_len = caml_string_length(source);
 	size_t d_len = s_len * 6;
 	char *d = malloc(d_len);
@@ -158,7 +158,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 	}
 	size_t result_len = d_current - d;
 	result = caml_alloc_string(result_len);
-	memcpy(String_val(result), d, result_len);
+	memcpy(Bytes_val(result), d, result_len);
 	free(d);
 	CAMLreturn(result);
 }
