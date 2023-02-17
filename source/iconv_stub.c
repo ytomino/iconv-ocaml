@@ -109,9 +109,11 @@ static unsigned long mliconv_deserialize(void *dst)
 	size_t to_len = deserialize_uint_4();
 	char *tocode = malloc(to_len + 1);
 	deserialize_block_1(tocode, to_len);
+	tocode[to_len] = '\0';
 	size_t from_len = deserialize_uint_4();
 	char *fromcode = malloc(from_len + 1);
 	deserialize_block_1(fromcode, from_len);
+	fromcode[from_len] = '\0';
 	iconv_t handle = iconv_open(tocode, fromcode);
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
@@ -127,6 +129,13 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->tocode = tocode;
 	internal->fromcode = fromcode;
 	CAMLreturn(sizeof(struct mliconv_t));
+}
+
+/* setup */
+
+__attribute__((constructor)) static void mliconv_register(void)
+{
+	register_custom_operations(&iconv_ops);
 }
 
 #endif
