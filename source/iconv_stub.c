@@ -95,24 +95,24 @@ static void mliconv_serialize(
 	*wsize_64 = 8 * 3;
 	struct mliconv_t *internal = mliconv_val(v);
 	size_t to_len = strlen(internal->tocode);
-	serialize_int_4(to_len);
-	serialize_block_1(internal->tocode, to_len);
+	caml_serialize_int_4(to_len);
+	caml_serialize_block_1(internal->tocode, to_len);
 	size_t from_len = strlen(internal->fromcode);
-	serialize_int_4(from_len);
-	serialize_block_1(internal->fromcode, from_len);
+	caml_serialize_int_4(from_len);
+	caml_serialize_block_1(internal->fromcode, from_len);
 	CAMLreturn0;
 }
 
 static unsigned long mliconv_deserialize(void *dst)
 {
 	CAMLparam0();
-	size_t to_len = deserialize_uint_4();
+	size_t to_len = caml_deserialize_uint_4();
 	char *tocode = malloc(to_len + 1);
-	deserialize_block_1(tocode, to_len);
+	caml_deserialize_block_1(tocode, to_len);
 	tocode[to_len] = '\0';
-	size_t from_len = deserialize_uint_4();
+	size_t from_len = caml_deserialize_uint_4();
 	char *fromcode = malloc(from_len + 1);
-	deserialize_block_1(fromcode, from_len);
+	caml_deserialize_block_1(fromcode, from_len);
 	fromcode[from_len] = '\0';
 	iconv_t handle = iconv_open(tocode, fromcode);
 	if(handle == (iconv_t)-1){
@@ -135,7 +135,7 @@ static unsigned long mliconv_deserialize(void *dst)
 
 __attribute__((constructor)) static void mliconv_register(void)
 {
-	register_custom_operations(&iconv_ops);
+	caml_register_custom_operations(&iconv_ops);
 }
 
 #endif
@@ -178,7 +178,7 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 			fromcode);
 		caml_failwith(message);
 	}
-	result = alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
+	result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
 	struct mliconv_t *internal = mliconv_val(result);
 	internal->handle = handle;
 #if defined(__GNU_LIBRARY__) && !defined(_LIBICONV_VERSION)
