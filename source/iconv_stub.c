@@ -60,8 +60,8 @@ static void mliconv_finalize(value data)
 	CAMLparam1(data);
 	struct mliconv_t *internal = mliconv_val(data);
 	iconv_close(internal->handle);
-	free(internal->tocode);
-	free(internal->fromcode);
+	caml_stat_free(internal->tocode);
+	caml_stat_free(internal->fromcode);
 	CAMLreturn0;
 }
 
@@ -107,11 +107,15 @@ static unsigned long mliconv_deserialize(void *dst)
 {
 	CAMLparam0();
 	size_t to_len = caml_deserialize_uint_4();
-	char *tocode = malloc(to_len + 1);
+	char *tocode = caml_stat_alloc(to_len + 1);
 	caml_deserialize_block_1(tocode, to_len);
 	tocode[to_len] = '\0';
 	size_t from_len = caml_deserialize_uint_4();
-	char *fromcode = malloc(from_len + 1);
+	char *fromcode = caml_stat_alloc_noexc(from_len + 1);
+	if(fromcode == NULL){
+		caml_stat_free(tocode);
+		caml_raise_out_of_memory();
+	}
 	caml_deserialize_block_1(fromcode, from_len);
 	fromcode[from_len] = '\0';
 	iconv_t handle = iconv_open(tocode, fromcode);
@@ -120,8 +124,8 @@ static unsigned long mliconv_deserialize(void *dst)
 		strcat(
 			strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "),
 			fromcode);
-		free(tocode);
-		free(fromcode);
+		caml_stat_free(tocode);
+		caml_stat_free(fromcode);
 		caml_failwith(message);
 	}
 	struct mliconv_t *internal = (struct mliconv_t *)dst;
@@ -181,13 +185,14 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 	result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
 	struct mliconv_t *internal = mliconv_val(result);
 	internal->handle = handle;
-#if defined(__GNU_LIBRARY__) && !defined(_LIBICONV_VERSION)
-	internal->tocode = strdup(tocode);
-	internal->fromcode = strdup(fromcode);
-#else
-	internal->tocode = strdup(iconv_canonicalize(tocode));
-	internal->fromcode = strdup(iconv_canonicalize(fromcode));
+	internal->tocode = NULL; /* for the case that caml_stat_strdup fails */
+	internal->fromcode = NULL; /* same as above */
+#if !defined(__GNU_LIBRARY__) || defined(_LIBICONV_VERSION)
+	tocode = iconv_canonicalize(tocode);
+	fromcode = iconv_canonicalize(fromcode);
 #endif
+	internal->tocode = caml_stat_strdup(tocode);
+	internal->fromcode = caml_stat_strdup(fromcode);
 	CAMLreturn(result);
 }
 
