@@ -74,7 +74,7 @@ static int mliconv_compare(value left, value right)
 	if(result == 0){
 		result = strcmp(left_internal->fromcode, right_internal->fromcode);
 	}
-	CAMLreturn(result);
+	CAMLreturnT(int, result);
 }
 
 static long mliconv_hash(value data)
@@ -82,7 +82,7 @@ static long mliconv_hash(value data)
 	CAMLparam1(data);
 	struct mliconv_t *internal = mliconv_val(data);
 	long result = (strlen(internal->tocode) << 4) + strlen(internal->fromcode);
-	CAMLreturn(result);
+	CAMLreturnT(long, result);
 }
 
 #if defined(SUPPORT_SERIALIZATION)
@@ -132,7 +132,7 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->handle = handle;
 	internal->tocode = tocode;
 	internal->fromcode = fromcode;
-	CAMLreturn(sizeof(struct mliconv_t));
+	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
 }
 
 /* setup */
