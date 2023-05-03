@@ -359,8 +359,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 		}
 	}
 	size_t result_len = d_current - d;
-	result = caml_alloc_string(result_len);
-	memcpy(Bytes_val(result), d, result_len);
+	result = caml_alloc_initialized_string(result_len, d);
 	free(d);
 	CAMLreturn(result);
 }
