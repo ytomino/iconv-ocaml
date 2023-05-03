@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <iconv.h>
+#include <stdint.h>
 #include <string.h>
 
 /* Tag_some/Val_none are added since OCaml 4.12 */
@@ -20,13 +21,21 @@
 #define Val_none Val_int(0)
 #endif
 
+/* characteristics */
+
+#define MAX_SEQUENCE 6
+
 /* custom data */
 
 struct mliconv_t {
 	iconv_t handle;
 	char *tocode;
 	char *fromcode;
+	int_least8_t min_sequence_in_fromcode;
 };
+
+#define WSIZE_32_MLICONV (4 * 4)
+#define WSIZE_64_MLICONV (8 * 4)
 
 static inline struct mliconv_t *mliconv_val(value data)
 {
@@ -91,8 +100,8 @@ static void mliconv_serialize(
 	value v, unsigned long *wsize_32, unsigned long *wsize_64)
 {
 	CAMLparam1(v);
-	*wsize_32 = 4 * 3;
-	*wsize_64 = 8 * 3;
+	*wsize_32 = WSIZE_32_MLICONV;
+	*wsize_64 = WSIZE_64_MLICONV;
 	struct mliconv_t *internal = mliconv_val(v);
 	size_t to_len = strlen(internal->tocode);
 	caml_serialize_int_4(to_len);
@@ -132,6 +141,7 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->handle = handle;
 	internal->tocode = tocode;
 	internal->fromcode = fromcode;
+	internal->min_sequence_in_fromcode = -1;
 	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
 }
 
@@ -143,6 +153,60 @@ __attribute__((constructor)) static void mliconv_register(void)
 }
 
 #endif
+
+static int convert_one_sequence(
+	char const *tocode,
+	char const *fromcode,
+	char in,
+	char **outbuf,
+	size_t *outbytesleft)
+{
+	int result;
+	iconv_t handle = iconv_open(tocode, fromcode);
+	if(handle == (iconv_t)-1){
+		result = -1; /* error */
+	}else{
+		char inbuffer[2] = {in, '\0'};
+		char *inbuf = inbuffer;
+		size_t inbytesleft = 1;
+		result = 0;
+		while(inbytesleft > 0){
+			if(iconv(handle, &inbuf, &inbytesleft, outbuf, outbytesleft) == (size_t)-1){
+				result = -1; /* error */
+				break;
+			}
+		}
+		iconv_close(handle);
+	}
+	return result;
+}
+
+static char latin1[] = "ISO-8859-1";
+
+static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
+{
+	int_least8_t min_sequence_in_fromcode = internal->min_sequence_in_fromcode;
+	if(min_sequence_in_fromcode < 0){
+		char outbuffer[MAX_SEQUENCE];
+		char *d = outbuffer;
+		size_t d_len = MAX_SEQUENCE;
+		if(convert_one_sequence(
+			internal->fromcode,
+			latin1,
+			'\0', /* assume '\0' is minimal in all encodings */
+			&d,
+			&d_len) < 0)
+		{
+			/* error case */
+			min_sequence_in_fromcode = 1;
+		}else{
+			size_t used = MAX_SEQUENCE - d_len;
+			min_sequence_in_fromcode = (used > 0) ? used : 1;
+		}
+		internal->min_sequence_in_fromcode = min_sequence_in_fromcode;
+	}
+	return min_sequence_in_fromcode;
+}
 
 /* version functions */
 
@@ -193,6 +257,7 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 #endif
 	internal->tocode = caml_stat_strdup(tocode);
 	internal->fromcode = caml_stat_strdup(fromcode);
+	internal->min_sequence_in_fromcode = -1;
 	CAMLreturn(result);
 }
 
@@ -203,7 +268,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 	struct mliconv_t *internal = mliconv_val(conv);
 	/* const */ char *s = (char *)String_val(source);
 	size_t s_len = caml_string_length(source);
-	size_t d_len = s_len * 6;
+	size_t d_len = s_len * MAX_SEQUENCE;
 	char *d = malloc(d_len);
 	char *d_current = d;
 	while(s_len > 0){
@@ -213,8 +278,14 @@ CAMLprim value mliconv_convert(value conv, value source)
 				*d_current = '?';
 				++ d_current;
 				-- d_len;
-				++ s;
-				-- s_len;
+				size_t min_sequence_in_fromcode = get_min_sequence_in_fromcode(internal);
+				if(s_len < min_sequence_in_fromcode){
+					s += s_len;
+					s_len = 0;
+				}else{
+					s += min_sequence_in_fromcode;
+					s_len -= min_sequence_in_fromcode;
+				}
 			}else{
 				free(d);
 				caml_failwith("failed iconv");
@@ -244,4 +315,12 @@ CAMLprim value mliconv_fromcode(value conv)
 	struct mliconv_t *internal = mliconv_val(conv);
 	result = caml_copy_string(internal->fromcode);
 	CAMLreturn(result);
+}
+
+CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
+{
+	CAMLparam1(val_conv);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	size_t result = get_min_sequence_in_fromcode(internal);
+	CAMLreturn(Val_long((long)result));
 }
