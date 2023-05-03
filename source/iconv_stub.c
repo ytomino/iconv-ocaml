@@ -31,16 +31,23 @@ struct mliconv_t {
 	iconv_t handle;
 	char *tocode;
 	char *fromcode;
+	char substitute[MAX_SEQUENCE];
+	int_least8_t substitute_length;
 	int_least8_t min_sequence_in_fromcode;
 };
 
-#define WSIZE_32_MLICONV (4 * 4)
+#define WSIZE_32_MLICONV (4 * 5)
 #define WSIZE_64_MLICONV (8 * 4)
 
 static inline struct mliconv_t *mliconv_val(value data)
 {
 	return (struct mliconv_t *)(Data_custom_val(data));
 }
+
+static void get_substitute(
+	struct mliconv_t *internal,
+	char const **substitute,
+	size_t *substitute_length);
 
 static void mliconv_finalize(value r);
 static int mliconv_compare(value left, value right);
@@ -82,6 +89,21 @@ static int mliconv_compare(value left, value right)
 	int result = strcmp(left_internal->tocode, right_internal->tocode);
 	if(result == 0){
 		result = strcmp(left_internal->fromcode, right_internal->fromcode);
+		if(result == 0){
+			char const *left_substitute;
+			size_t left_substitute_length;
+			char const *right_substitute;
+			size_t right_substitute_length;
+			get_substitute(left_internal, &left_substitute, &left_substitute_length);
+			get_substitute(right_internal, &right_substitute, &right_substitute_length);
+			size_t min_substitute_length =
+				(left_substitute_length < right_substitute_length) ? left_substitute_length :
+				right_substitute_length;
+			result = memcmp(left_substitute, right_substitute, min_substitute_length);
+			if(result == 0){
+				result = right_substitute_length - left_substitute_length;
+			}
+		}
 	}
 	CAMLreturnT(int, result);
 }
@@ -141,6 +163,7 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->handle = handle;
 	internal->tocode = tocode;
 	internal->fromcode = fromcode;
+	internal->substitute_length = -1;
 	internal->min_sequence_in_fromcode = -1;
 	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
 }
@@ -182,6 +205,28 @@ static int convert_one_sequence(
 }
 
 static char latin1[] = "ISO-8859-1";
+
+static void get_substitute(
+	struct mliconv_t *internal,
+	char const **substitute,
+	size_t *substitute_length)
+{
+	int_least8_t result_substitute_length = internal->substitute_length;
+	if(result_substitute_length < 0){
+		char *d = internal->substitute;
+		size_t d_len = MAX_SEQUENCE;
+		if(convert_one_sequence(internal->tocode, latin1, '?', &d, &d_len) < 0){
+			/* error case */
+			internal->substitute[0] = '?';
+			result_substitute_length = 1;
+		}else{
+			result_substitute_length = MAX_SEQUENCE - d_len;
+		}
+		internal->substitute_length = result_substitute_length;
+	}
+	*substitute = internal->substitute;
+	*substitute_length = result_substitute_length;
+}
 
 static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
 {
@@ -257,6 +302,7 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 #endif
 	internal->tocode = caml_stat_strdup(tocode);
 	internal->fromcode = caml_stat_strdup(fromcode);
+	internal->substitute_length = -1;
 	internal->min_sequence_in_fromcode = -1;
 	CAMLreturn(result);
 }
@@ -275,9 +321,18 @@ CAMLprim value mliconv_convert(value conv, value source)
 		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
 			int e = errno;
 			if(e == EILSEQ || e == EINVAL){
-				*d_current = '?';
-				++ d_current;
-				-- d_len;
+				char const *substitute;
+				size_t substitute_length;
+				get_substitute(internal, &substitute, &substitute_length);
+				if(d_len < substitute_length){
+					/* like E2BIG */
+					free(d);
+					caml_failwith("failed iconv");
+				}else{
+					memcpy(d_current, substitute, substitute_length);
+					d_current += substitute_length;
+					d_len -= substitute_length;
+				}
 				size_t min_sequence_in_fromcode = get_min_sequence_in_fromcode(internal);
 				if(s_len < min_sequence_in_fromcode){
 					s += s_len;
