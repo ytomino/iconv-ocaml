@@ -386,6 +386,32 @@ CAMLprim value mliconv_fromcode(value conv)
 	CAMLreturn(result);
 }
 
+CAMLprim value mliconv_substitute(value val_conv)
+{
+	CAMLparam1(val_conv);
+	CAMLlocal1(val_result);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char const *substitute;
+	size_t substitute_length;
+	get_substitute(internal, &substitute, &substitute_length);
+	val_result = caml_alloc_initialized_string(substitute_length, substitute);
+	CAMLreturn(val_result);
+}
+
+CAMLprim value mliconv_set_substitute(value val_conv, value val_substitute)
+{
+	CAMLparam2(val_conv, val_substitute);
+	size_t substitute_length = caml_string_length(val_substitute);
+	if(substitute_length > MAX_SEQUENCE){
+		caml_invalid_argument(__func__); /* too long */
+	}
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char const *substitute = (char *)String_val(val_substitute);
+	internal->substitute_length = substitute_length;
+	memcpy(internal->substitute, substitute, substitute_length);
+	CAMLreturn(Val_unit);
+}
+
 CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 {
 	CAMLparam1(val_conv);
