@@ -162,7 +162,9 @@ static unsigned long mliconv_deserialize(void *dst)
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
 		strcat(
-			strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "),
+			strcat(
+				strcat(strcat(strcpy(message, __func__), ": failed iconv_open to "), tocode),
+				" from "),
 			fromcode);
 		caml_stat_free(tocode);
 		caml_stat_free(fromcode);
@@ -287,7 +289,9 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
 		strcat(
-			strcat(strcat(strcpy(message, "failed iconv_open to "), tocode), " from "),
+			strcat(
+				strcat(strcat(strcpy(message, __func__), ": failed iconv_open to "), tocode),
+				" from "),
 			fromcode);
 		caml_failwith(message);
 	}
@@ -327,7 +331,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 				if(d_len < substitute_length){
 					/* like E2BIG */
 					free(d);
-					caml_failwith("failed iconv");
+					caml_failwith(__func__);
 				}else{
 					memcpy(d_current, substitute, substitute_length);
 					d_current += substitute_length;
@@ -343,7 +347,7 @@ CAMLprim value mliconv_convert(value conv, value source)
 				}
 			}else{
 				free(d);
-				caml_failwith("failed iconv");
+				caml_failwith(__func__);
 			}
 		}
 	}
