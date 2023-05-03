@@ -16,16 +16,22 @@ assert (Iconv.iconv iconv "\x00\x00\x01\x00" = "?");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-8" ~fromcode:"UTF-16BE" in
 assert (Iconv.iconv iconv "\x01\x00" = "\xC4\x80");
-assert (Iconv.iconv iconv "\xDF\xFF" = "?");;
+assert (Iconv.iconv iconv "\xDF\xFF" = "?");
+Iconv.set_substitute iconv "";
+assert (Iconv.iconv iconv "\xDF\xFF" = "");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-16BE" ~fromcode:"UTF-8" in
-assert (Iconv.iconv iconv "\xFF" = "\x00\x3F");;
+assert (Iconv.iconv iconv "\xFF" = "\x00\x3F");
+Iconv.set_substitute iconv "";
+assert (Iconv.iconv iconv "\xFF" = "");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-16BE" ~fromcode:"UTF-32BE" in
 assert (Iconv.iconv iconv "\x00\x00\x01\x00" = "\x01\x00");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-32BE" ~fromcode:"UTF-8" in
-assert (Iconv.iconv iconv "\xFF" = "\x00\x00\x00\x3F");;
+assert (Iconv.iconv iconv "\xFF" = "\x00\x00\x00\x3F");
+Iconv.set_substitute iconv "";
+assert (Iconv.iconv iconv "\xFF" = "");;
 
 (* report *)
 
