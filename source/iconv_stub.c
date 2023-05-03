@@ -48,8 +48,10 @@ static void get_substitute(struct mliconv_t *internal, char const **substitute,
 	size_t *substitute_length);
 
 static void mliconv_finalize(value r);
+#if defined(SUPPORT_COMPARISON)
 static int mliconv_compare(value left, value right);
 static long mliconv_hash(value data);
+#endif
 #if defined(SUPPORT_SERIALIZATION)
 static void mliconv_serialize(value v, unsigned long *wsize_32,
 	unsigned long *wsize_64);
@@ -59,8 +61,13 @@ static unsigned long mliconv_deserialize(void *dst);
 static struct custom_operations iconv_ops = {
 	.identifier = "jp.halfmoon.panathenaia.iconv",
 	.finalize = mliconv_finalize,
+#if defined(SUPPORT_COMPARISON)
 	.compare = mliconv_compare,
 	.hash = mliconv_hash,
+#else
+	.compare = custom_compare_default,
+	.hash = custom_hash_default,
+#endif
 #if defined(SUPPORT_SERIALIZATION)
 	.serialize = mliconv_serialize,
 	.deserialize = mliconv_deserialize};
@@ -78,6 +85,8 @@ static void mliconv_finalize(value data)
 	caml_stat_free(internal->fromcode);
 	CAMLreturn0;
 }
+
+#if defined(SUPPORT_COMPARISON)
 
 static int mliconv_compare(value left, value right)
 {
@@ -113,6 +122,8 @@ static long mliconv_hash(value data)
 	long result = (strlen(internal->tocode) << 4) + strlen(internal->fromcode);
 	CAMLreturnT(long, result);
 }
+
+#endif
 
 #if defined(SUPPORT_SERIALIZATION)
 
