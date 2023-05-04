@@ -362,23 +362,30 @@ CAMLprim value mliconv_convert(value conv, value source)
 	size_t d_len = s_len * MAX_SEQUENCE;
 	char *d = malloc(d_len);
 	char *d_current = d;
+	bool failed = false;
 	while(s_len > 0){
 		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
 			int e = errno;
 			if(e == EILSEQ || e == EINVAL){
 				if(put_substitute(internal, &d_current, &d_len) < 0){
 					/* like E2BIG */
-					free(d);
-					caml_failwith(__func__);
+					failed = true;
+					break;
 				}
 				skip_min_sequence(internal, &s, &s_len);
 			}else{
-				free(d);
-				caml_failwith(__func__);
+				failed = true;
+				break;
 			}
 		}
 	}
-	if(iconv(internal->handle, NULL, NULL, &d_current, &d_len) == (size_t)-1){
+	if(!failed
+		&& iconv(internal->handle, NULL, NULL, &d_current, &d_len) == (size_t)-1)
+	{
+		failed = true;
+	}
+	if(failed){
+		iconv(internal->handle, NULL, NULL, NULL, NULL);
 		free(d);
 		caml_failwith(__func__);
 	}
