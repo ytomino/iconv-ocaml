@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <iconv.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -241,6 +242,22 @@ static void get_substitute(
 	*substitute_length = result_substitute_length;
 }
 
+static int put_substitute(
+	struct mliconv_t *internal, char **outbuf, size_t *outbytesleft)
+{
+	char const *substitute;
+	size_t substitute_length;
+	get_substitute(internal, &substitute, &substitute_length);
+	if(*outbytesleft < substitute_length){
+		return -1;
+	}else{
+		memcpy(*outbuf, substitute, substitute_length);
+		*outbuf += substitute_length;
+		*outbytesleft -= substitute_length;
+		return 0;
+	}
+}
+
 static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
 {
 	int_least8_t min_sequence_in_fromcode = internal->min_sequence_in_fromcode;
@@ -264,6 +281,19 @@ static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
 		internal->min_sequence_in_fromcode = min_sequence_in_fromcode;
 	}
 	return min_sequence_in_fromcode;
+}
+
+static void skip_min_sequence(
+	struct mliconv_t *internal, char **inbuf, size_t *inbytesleft)
+{
+	size_t min_sequence_in_fromcode = get_min_sequence_in_fromcode(internal);
+	if(*inbytesleft < min_sequence_in_fromcode){
+		*inbuf += *inbytesleft;
+		*inbytesleft = 0;
+	}else{
+		*inbuf += min_sequence_in_fromcode;
+		*inbytesleft -= min_sequence_in_fromcode;
+	}
 }
 
 /* version functions */
@@ -336,26 +366,12 @@ CAMLprim value mliconv_convert(value conv, value source)
 		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
 			int e = errno;
 			if(e == EILSEQ || e == EINVAL){
-				char const *substitute;
-				size_t substitute_length;
-				get_substitute(internal, &substitute, &substitute_length);
-				if(d_len < substitute_length){
+				if(put_substitute(internal, &d_current, &d_len) < 0){
 					/* like E2BIG */
 					free(d);
 					caml_failwith(__func__);
-				}else{
-					memcpy(d_current, substitute, substitute_length);
-					d_current += substitute_length;
-					d_len -= substitute_length;
 				}
-				size_t min_sequence_in_fromcode = get_min_sequence_in_fromcode(internal);
-				if(s_len < min_sequence_in_fromcode){
-					s += s_len;
-					s_len = 0;
-				}else{
-					s += min_sequence_in_fromcode;
-					s_len -= min_sequence_in_fromcode;
-				}
+				skip_min_sequence(internal, &s, &s_len);
 			}else{
 				free(d);
 				caml_failwith(__func__);
@@ -370,6 +386,77 @@ CAMLprim value mliconv_convert(value conv, value source)
 	result = caml_alloc_initialized_string(result_len, d);
 	free(d);
 	CAMLreturn(result);
+}
+
+CAMLprim value mliconv_iconv(value val_conv, value val_state, value val_finish)
+{
+	CAMLparam3(val_conv, val_state, val_finish);
+	bool result = true;
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char *inbuf_start = (char *)String_val(Field(val_state, 0));
+	char *inbuf = inbuf_start + Long_val(Field(val_state, 1));
+	size_t inbytesleft = Long_val(Field(val_state, 2));
+	char *outbuf_start = (char *)Bytes_val(Field(val_state, 3));
+	char *outbuf = outbuf_start + Long_val(Field(val_state, 4));
+	size_t outbytesleft = Long_val(Field(val_state, 5));
+	while(inbytesleft > 0){
+		if(iconv(internal->handle, &inbuf, &inbytesleft, &outbuf, &outbytesleft)
+			== (size_t)-1)
+		{
+			int e = errno;
+			if(e == E2BIG){
+				result = false;
+				break;
+			}else if(e == EINVAL && !Bool_val(val_finish)){ /* truncated */
+				break;
+			}else if(e == EILSEQ || e == EINVAL){
+				if(put_substitute(internal, &outbuf, &outbytesleft) < 0){
+					/* like E2BIG */
+					result = false;
+					break;
+				}
+				skip_min_sequence(internal, &inbuf, &inbytesleft);
+			}else{
+				caml_failwith(__func__);
+			}
+		}
+	}
+	Store_field(val_state, 1, Val_long(inbuf - inbuf_start));
+	Store_field(val_state, 2, Val_long(inbytesleft));
+	Store_field(val_state, 4, Val_long(outbuf - outbuf_start));
+	Store_field(val_state, 5, Val_long(outbytesleft));
+	CAMLreturn(Val_bool(result));
+}
+
+CAMLprim value mliconv_iconv_end(value val_conv, value val_state)
+{
+	CAMLparam2(val_conv, val_state);
+	bool result = true;
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char *outbuf_start = (char *)Bytes_val(Field(val_state, 3));
+	char *outbuf = outbuf_start + Long_val(Field(val_state, 4));
+	size_t outbytesleft = Long_val(Field(val_state, 5));
+	if(iconv(internal->handle, NULL, NULL, &outbuf, &outbytesleft) == (size_t)-1){
+		int e = errno;
+		if(e == E2BIG){
+			result = false;
+		}else{
+			caml_failwith(__func__);
+		}
+	}
+	Store_field(val_state, 4, Val_long(outbuf - outbuf_start));
+	Store_field(val_state, 5, Val_long(outbytesleft));
+	CAMLreturn(Val_bool(result));
+}
+
+CAMLprim value mliconv_iconv_reset(value val_conv)
+{
+	CAMLparam1(val_conv);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	if(iconv(internal->handle, NULL, NULL, NULL, NULL) == (size_t)-1){
+		caml_failwith(__func__);
+	}
+	CAMLreturn(Val_unit);
 }
 
 CAMLprim value mliconv_tocode(value conv)

@@ -12,3 +12,13 @@ external iconv: iconv_t -> string -> string = "mliconv_convert"
 
 external substitute: iconv_t -> string = "mliconv_substitute"
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute"
+
+type out_state
+type out_iconv = iconv_t * out_state
+
+val open_out: tocode:string -> fromcode:string ->
+	(string -> int -> int -> unit) -> out_iconv
+val output_substring: out_iconv -> string -> int -> int -> unit
+val flush: out_iconv -> unit
+val end_out: out_iconv -> unit
+val reset_out: out_iconv -> unit

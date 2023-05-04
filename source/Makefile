@@ -36,6 +36,8 @@ endif
 
 include Makefile.rules
 
+$(BUILDDIR)/iconv.cmo $(BUILDDIR)/iconv.cmx: \
+	private override OCAMLCFLAGS+=-w -69
 $(BUILDDIR)/iconv_pp.cmo: $(BUILDDIR)/iconv.cmi
 $(BUILDDIR)/iconv_pp.cmx: $(BUILDDIR)/iconv.cmx
 $(BUILDDIR)/iconv_pp_install.cmo $(BUILDDIR)/iconv_pp_install.cmi: \

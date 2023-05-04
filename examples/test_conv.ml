@@ -17,6 +17,21 @@ let x = iconv c s in
 if verbose then print_endline (String.escaped x);
 assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
 
+(* out_iconv *)
+
+let buf = Buffer.create 256 in
+let w = Iconv.open_out ~tocode:"ISO-2022-JP" ~fromcode:"UTF-16BE"
+	(Buffer.add_substring buf)
+in
+let s = "\x00\x41\x30\x42" in
+for i = 0 to String.length s - 1 do
+	Iconv.output_substring w s i 1
+done;
+Iconv.end_out w;
+let x = Buffer.contents buf in
+if verbose then print_endline (String.escaped x);
+assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
+
 (* report *)
 
 Printf.eprintf "ok\n";;

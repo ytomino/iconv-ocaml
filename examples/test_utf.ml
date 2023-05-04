@@ -33,6 +33,25 @@ assert (Iconv.iconv iconv "\xFF" = "\x00\x00\x00\x3F");
 Iconv.set_substitute iconv "";
 assert (Iconv.iconv iconv "\xFF" = "");;
 
+let buf = Buffer.create 256 in
+let w = Iconv.open_out ~tocode:"UTF-32BE" ~fromcode:"UTF-16BE"
+	(Buffer.add_substring buf)
+in
+let s = "\xD8\x7E\xDC\x00" in (* U+2F800 *)
+Iconv.output_substring w s 0 2; (* high surrogate *)
+assert (Buffer.length buf = 0); (* pending *)
+Iconv.output_substring w s 3 1; (* low surrogate but truncated *)
+assert (Buffer.length buf = 0); (* pending *)
+Iconv.end_out w;
+let x = Buffer.contents buf in
+assert (x = "\x00\x00\x00\x3F\x00\x00\x00\x3F");
+Buffer.clear buf;
+Iconv.reset_out w;
+Iconv.output_substring w s 0 4;
+Iconv.end_out w;
+let x = Buffer.contents buf in
+assert (x = "\x00\x02\xF8\x00");;
+
 (* report *)
 
 Printf.eprintf "ok\n";;
