@@ -362,6 +362,10 @@ CAMLprim value mliconv_convert(value conv, value source)
 			}
 		}
 	}
+	if(iconv(internal->handle, NULL, NULL, &d_current, &d_len) == (size_t)-1){
+		free(d);
+		caml_failwith(__func__);
+	}
 	size_t result_len = d_current - d;
 	result = caml_alloc_initialized_string(result_len, d);
 	free(d);
