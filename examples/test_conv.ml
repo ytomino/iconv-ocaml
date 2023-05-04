@@ -11,6 +11,12 @@ assert (
 		^ "\149\182\142\154\151\241\130\197\130\183\n"
 );;
 
+let c = iconv_open ~tocode:"ISO-2022-JP" ~fromcode:"UTF-8" in
+let s = "Aあ" in
+let x = iconv c s in
+if verbose then print_endline (String.escaped x);
+assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
+
 (* report *)
 
 Printf.eprintf "ok\n";;
