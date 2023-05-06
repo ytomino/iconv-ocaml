@@ -24,7 +24,9 @@
 
 /* characteristics */
 
-#define MAX_SEQUENCE 6
+#define MAX_SEQUENCE 8
+/* For example: ISO-8859-1 "\xA2" ("¢") is converted to
+   ISO-2022-JP "\x1B\x24\x42\x21\x71\x1B\x28\x42". */
 
 /* custom data */
 
@@ -37,8 +39,8 @@ struct mliconv_t {
 	int_least8_t min_sequence_in_fromcode;
 };
 
-#define WSIZE_32_MLICONV (4 * 5)
-#define WSIZE_64_MLICONV (8 * 4)
+#define WSIZE_32_MLICONV (4 * 6)
+#define WSIZE_64_MLICONV (8 * 5)
 
 static inline struct mliconv_t *mliconv_val(value data)
 {
