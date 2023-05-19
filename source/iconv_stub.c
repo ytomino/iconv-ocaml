@@ -247,17 +247,30 @@ static void get_substitute(
 static int put_substitute(
 	struct mliconv_t *internal, char **outbuf, size_t *outbytesleft)
 {
+	int result;
 	char const *substitute;
 	size_t substitute_length;
 	get_substitute(internal, &substitute, &substitute_length);
-	if(*outbytesleft < substitute_length){
-		return -1;
+	if(substitute_length == 0){
+		result = 0;
 	}else{
-		memcpy(*outbuf, substitute, substitute_length);
-		*outbuf += substitute_length;
-		*outbytesleft -= substitute_length;
-		return 0;
+		char *ob2 = *outbuf;
+		size_t obl2 = *outbytesleft;
+		if(iconv(internal->handle, NULL, NULL, &ob2, &obl2) == (size_t)-1){
+			result = -1; /* error */
+		}else if(obl2 < substitute_length){
+			errno = E2BIG;
+			result = -1; /* error */
+		}else{
+			memcpy(ob2, substitute, substitute_length);
+			ob2 += substitute_length;
+			obl2 -= substitute_length;
+			*outbuf = ob2;
+			*outbytesleft = obl2;
+			result = 0;
+		}
 	}
+	return result;
 }
 
 static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
@@ -420,9 +433,13 @@ CAMLprim value mliconv_iconv(value val_conv, value val_state, value val_finish)
 				break;
 			}else if(e == EILSEQ || e == EINVAL){
 				if(put_substitute(internal, &outbuf, &outbytesleft) < 0){
-					/* like E2BIG */
-					result = false;
-					break;
+					e = errno;
+					if(e == E2BIG){
+						result = false;
+						break;
+					}else{
+						caml_failwith(__func__);
+					}
 				}
 				skip_min_sequence(internal, &inbuf, &inbytesleft);
 			}else{
