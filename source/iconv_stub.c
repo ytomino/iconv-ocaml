@@ -51,6 +51,8 @@ static void get_substitute(
 	struct mliconv_t *internal,
 	char const **substitute,
 	size_t *substitute_length);
+static bool get_force_substitute(struct mliconv_t *internal);
+static void set_force_substitute(struct mliconv_t *internal, bool enabled);
 
 static void mliconv_finalize(value r);
 #if defined(SUPPORT_COMPARISON)
@@ -114,6 +116,11 @@ static int mliconv_compare(value left, value right)
 			result = memcmp(left_substitute, right_substitute, min_substitute_length);
 			if(result == 0){
 				result = right_substitute_length - left_substitute_length;
+				if(result == 0){
+					bool left_force_substitute = get_force_substitute(left_internal);
+					bool right_force_substitute = get_force_substitute(right_internal);
+					result = right_force_substitute - left_force_substitute;
+				}
 			}
 		}
 	}
@@ -145,6 +152,7 @@ static void mliconv_serialize(
 	size_t from_len = strlen(internal->fromcode);
 	caml_serialize_int_4(from_len);
 	caml_serialize_block_1(internal->fromcode, from_len);
+	caml_serialize_int_1(get_force_substitute(internal));
 	CAMLreturn0;
 }
 
@@ -181,6 +189,7 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->fromcode = fromcode;
 	internal->substitute_length = -1;
 	internal->min_sequence_in_fromcode = -1;
+	set_force_substitute(internal, caml_deserialize_uint_1());
 	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
 }
 
@@ -242,6 +251,35 @@ static void get_substitute(
 	}
 	*substitute = internal->substitute;
 	*substitute_length = result_substitute_length;
+}
+
+static bool get_force_substitute(
+	__attribute__((unused)) struct mliconv_t *internal)
+{
+	bool result;
+#if !defined(_LIBICONV_VERSION) && defined(__FreeBSD__) && __FreeBSD__ >= 10
+	int arg;
+	if(iconvctl(internal->handle, ICONV_GET_ILSEQ_INVALID, &arg) < 0){
+		caml_failwith(__func__);
+	}else{
+		result = arg;
+	}
+#else
+	result = true;
+#endif
+	return result;
+}
+
+static void set_force_substitute(
+	__attribute__((unused)) struct mliconv_t *internal,
+	__attribute__((unused)) bool enabled)
+{
+#if !defined(_LIBICONV_VERSION) && defined(__FreeBSD__) && __FreeBSD__ >= 10
+	int arg = enabled;
+	if(iconvctl(internal->handle, ICONV_SET_ILSEQ_INVALID, &arg) < 0){
+		caml_failwith(__func__);
+	}
+#endif
 }
 
 static int put_substitute(
@@ -526,6 +564,23 @@ CAMLprim value mliconv_set_substitute(value val_conv, value val_substitute)
 	char const *substitute = (char *)String_val(val_substitute);
 	internal->substitute_length = substitute_length;
 	memcpy(internal->substitute, substitute, substitute_length);
+	CAMLreturn(Val_unit);
+}
+
+CAMLprim value mliconv_force_substitute(value val_conv)
+{
+	CAMLparam1(val_conv);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	bool result = get_force_substitute(internal);
+	CAMLreturn(Val_bool(result));
+}
+
+CAMLprim value mliconv_set_force_substitute(value val_conv, value val_enabled)
+{
+	CAMLparam2(val_conv, val_enabled);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	bool enabled = Bool_val(val_enabled);
+	set_force_substitute(internal, enabled);
 	CAMLreturn(Val_unit);
 }
 

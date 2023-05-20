@@ -16,6 +16,10 @@ external iconv: iconv_t -> string -> string = "mliconv_convert";;
 external substitute: iconv_t -> string = "mliconv_substitute";;
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute";;
 
+external force_substitute: iconv_t -> bool = "mliconv_force_substitute";;
+external set_force_substitute: iconv_t -> bool -> unit =
+	"mliconv_set_force_substitute";;
+
 type out_state = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;

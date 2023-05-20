@@ -3,7 +3,14 @@ external min_sequence_in_fromcode: Iconv.iconv_t -> int =
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-8" in
 assert (min_sequence_in_fromcode iconv = 1);
-assert (Iconv.iconv iconv "\xC4\x80" = "??");;
+Iconv.set_substitute iconv "-"; (* That customize substitution text. *)
+if not (Iconv.force_substitute iconv) then (
+	assert (Iconv.iconv iconv "\xC4\x80" = "?")
+	(* When Citrus internally substitution is active, that can skip best length,
+	   but application can not customize substitution text. *)
+);
+Iconv.set_force_substitute iconv true;
+assert (Iconv.iconv iconv "\xC4\x80" = "--");; (* That is customized text. *)
 	(* A fallback handler is needed to return "?". *)
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-16BE" in
