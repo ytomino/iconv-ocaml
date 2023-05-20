@@ -29,6 +29,7 @@ let buf = Buffer.create 256 in
 let w = Iconv.open_out ~tocode:"ISO-2022-JP" ~fromcode:"UTF-16BE"
 	(Buffer.add_substring buf)
 in
+Iconv.set_force_substitute (fst w) true;
 let s = "\x00\x41\x30\x42\x00\xA0" in (* U+00A0 will be substituted *)
 for i = 0 to String.length s - 1 do
 	Iconv.output_substring w s i 1

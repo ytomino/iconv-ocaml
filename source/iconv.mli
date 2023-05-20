@@ -13,6 +13,14 @@ external iconv: iconv_t -> string -> string = "mliconv_convert"
 external substitute: iconv_t -> string = "mliconv_substitute"
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute"
 
+external force_substitute: iconv_t -> bool = "mliconv_force_substitute"
+external set_force_substitute: iconv_t -> bool -> unit =
+	"mliconv_set_force_substitute"
+(** Correspond to [ICONV_SET_ILSEQ_INVALID] of Citrus.
+    Citrus iconv internally substitutes valid characters does not exist in
+    [tocode] if [false].
+    It is always [true] in GNU libiconv or glibc. *)
+
 type out_state
 type out_iconv = iconv_t * out_state
 
