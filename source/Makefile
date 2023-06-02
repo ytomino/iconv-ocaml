@@ -23,7 +23,7 @@ LDLIB=
 ifeq ($(findstring linux-gnu,$(TARGET)),)
  LDLIB+=-liconv
 endif
-CCLIB=$(addprefix -cclib ,$(LDFLAGS) $(LDLIB))
+CCLIB=$(addprefix -cclib ,$(WLFLAGS) $(LDLIB))
 
 SUPPORT_COMPARISON=
 SUPPORT_SERIALIZATION=
