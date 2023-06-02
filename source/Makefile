@@ -17,6 +17,7 @@ ifneq ($(WITH_ICONV),)
 endif
 
 OCAMLCFLAGS=-w +a
+OCAMLOPTFLAGS=$(OCAMLCFLAGS)
 CFLAGS=$(WIFLAGS) -Wall -Wextra -Wno-unused-result
 
 LDFLAGS=$(WLFLAGS)

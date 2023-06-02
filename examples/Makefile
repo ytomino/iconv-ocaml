@@ -19,6 +19,7 @@ OCAMLOPT=$(if $(OCAMLC),$(OCAMLC:c=opt),$(PROGRAMPREFIX)ocamlopt)
 RLWRAP?=
 
 OCAMLCFLAGS=
+OCAMLOPTFLAGS=$(OCAMLCFLAGS)
 SUPPORT_COMPARISON=1
 SUPPORT_SERIALIZATION=1
 
@@ -41,7 +42,7 @@ $(BUILDDIR)/%.byte.exe: %.ml $(BUILDDIR)/iconv.cma
 	$(OCAMLC) -o $@ -I $(BUILDDIR) iconv.cma $(BUILDDIR)/$*.cmo
 
 $(BUILDDIR)/%.opt.exe: %.ml $(BUILDDIR)/iconv.cmxa
-	$(OCAMLOPT) -c -o $(BUILDDIR)/$*.cmx -I $(BUILDDIR) $(OCAMLCFLAGS) $<
+	$(OCAMLOPT) -c -o $(BUILDDIR)/$*.cmx -I $(BUILDDIR) $(OCAMLOPTFLAGS) $<
 	$(OCAMLOPT) -o $@ -I $(BUILDDIR) iconv.cmxa $(BUILDDIR)/$*.cmx
 
 check: all $(TESTS)
