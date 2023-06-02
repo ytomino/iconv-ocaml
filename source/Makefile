@@ -9,32 +9,21 @@ LIBNAME=iconv
 STUBLIBNAME=ml$(LIBNAME)
 
 WITH_ICONV?=
-WIFLAGS=
-WLFLAGS=
-ifneq ($(WITH_ICONV),)
- WIFLAGS+=-I$(WITH_ICONV)/include
- WLFLAGS+=-L$(WITH_ICONV)/lib
-endif
+WIFLAGS=$(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
+WLFLAGS=$(and $(WITH_ICONV),-L$(WITH_ICONV)/lib)
 
 OCAMLCFLAGS=-w +a
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
-CFLAGS=$(WIFLAGS) -Wall -Wextra -Wno-unused-result
+CFLAGS=$(WIFLAGS) -Wall -Wextra -Wno-unused-result \
+       $(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
+       $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION)
 
 LDFLAGS=$(WLFLAGS)
-LDLIB=
-ifeq ($(findstring linux-gnu,$(TARGET)),)
- LDLIB+=-liconv
-endif
+LDLIB=$(if $(findstring linux-gnu,$(TARGET)),,-liconv)
 CCLIB=$(addprefix -cclib ,$(WLFLAGS) $(LDLIB))
 
 SUPPORT_COMPARISON=
 SUPPORT_SERIALIZATION=
-ifneq ($(SUPPORT_COMPARISON),)
-	CFLAGS+=-DSUPPORT_COMPARISON
-endif
-ifneq ($(SUPPORT_SERIALIZATION),)
-	CFLAGS+=-DSUPPORT_SERIALIZATION
-endif
 
 include Makefile.rules
 
