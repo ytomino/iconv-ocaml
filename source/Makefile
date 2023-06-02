@@ -8,6 +8,7 @@ CSRC=iconv_stub.c
 LIBNAME=iconv
 STUBLIBNAME=ml$(LIBNAME)
 
+WITH_ICONV?=
 WIFLAGS=
 WLFLAGS=
 ifneq ($(WITH_ICONV),)
