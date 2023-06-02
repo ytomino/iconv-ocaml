@@ -58,7 +58,9 @@ endif
 interactive: $(BUILDDIR)/iconv.cma
 	$(RLWRAP) ocaml -I $(BUILDDIR) $(OCAMLCFLAGS) iconv.cma
 
-$(BUILDDIR)/iconv.cma $(BUILDDIR)/iconv.cmxa&: ../source/iconv*
+$(if $(OCAMLC),$(BUILDDIR)/iconv.cma) \
+$(if $(OCAMLOPT),$(BUILDDIR)/iconv.cmxa)&: \
+		../source/iconv*
 	$(MAKE) -C ../source install \
 		BUILDDIR=$(abspath $(ICONV_BUILDDIR)) \
 		INSTALLDIR=$(abspath $(BUILDDIR)) \
