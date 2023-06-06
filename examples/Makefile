@@ -52,20 +52,22 @@ interactive: $(BUILDDIR)/iconv.cma
 $(and $(OCAMLC),$(BUILDDIR)/iconv.cma) \
 $(and $(OCAMLOPT),$(BUILDDIR)/iconv.cmxa)&: \
 		../source/iconv*
-	$(MAKE) -C ../source install \
+	$(MAKE) $(strip \
+		-C ../source install \
 		BUILDDIR=$(abspath $(ICONV_BUILDDIR)) \
 		INSTALLDIR=$(abspath $(BUILDDIR)) \
 		SUPPORT_COMPARISON=$(SUPPORT_COMPARISON) \
-		SUPPORT_SERIALIZATION=$(SUPPORT_SERIALIZATION)
+		SUPPORT_SERIALIZATION=$(SUPPORT_SERIALIZATION))
 
 $(BINLN):
 	ln -s $(BUILDDIR) $@
 
 clean:
 	-$(and $(BINLN),[ -h "$(BINLN)" ] && rm "$(BINLN)")
-	-$(MAKE) -C ../source clean uninstall \
+	-$(MAKE) $(strip \
+		-C ../source clean uninstall \
 		BUILDDIR=$(abspath $(ICONV_BUILDDIR)) \
-		INSTALLDIR=$(abspath $(BUILDDIR))
+		INSTALLDIR=$(abspath $(BUILDDIR)))
 	-rm $(BUILDDIR)/*.exe $(BUILDDIR)/*.cm? $(BUILDDIR)/*.o
 	-rmdir $(BUILDDIR)/stublibs
 	-rmdir $(BUILDDIR)
