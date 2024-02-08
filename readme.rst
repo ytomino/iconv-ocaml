@@ -9,7 +9,7 @@ Objective-Caml binding to the International Codeset Conversion Library.
 Prerequisites
 -------------
 
-OCaml >= 4.08
+OCaml >= 4.11
  https://ocaml.org/
 libiconv (Citrus version)
  https://wiki.freebsd.org/G%C3%A1borSoC2009
