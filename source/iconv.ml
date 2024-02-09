@@ -102,13 +102,14 @@ let flush (_, state: out_iconv) = (
 );;
 
 let end_out (cd, state: out_iconv) = (
+	let loc = "Iconv.end_out" (* __FUNCTION__ *) in
 	if state.inbytesleft > 0 && not (iconv_step cd state true) then (
 		do_flush state;
-		if not (iconv_step cd state true) then failwith "Iconv.end_out"
+		if not (iconv_step cd state true) then failwith loc
 	);
 	if not (iconv_end cd state) then (
 		do_flush state;
-		if not (iconv_end cd state) then failwith "Iconv.end_out"
+		if not (iconv_end cd state) then failwith loc
 	);
 	do_flush state
 );;
