@@ -61,13 +61,9 @@ let do_flush (state: out_state) = (
 		)
 );;
 
-let output_substring (cd, state: out_iconv) (s: string) (offset: int)
+let unsafe_output_substring (cd, state: out_iconv) (s: string) (offset: int)
 	(len: int) =
 (
-	if len <= 0 then () else
-	if offset < 0 || offset + len > String.length s then (
-		invalid_arg "Iconv.output_string"
-	);
 	if state.inbytesleft = 0 then (
 		state.inbuf <- s;
 		state.inbuf_offset <- offset;
@@ -89,6 +85,16 @@ let output_substring (cd, state: out_iconv) (s: string) (offset: int)
 		)
 	) in
 	loop ()
+);;
+
+let output_substring (oi: out_iconv) (s: string) (offset: int) (len: int) = (
+	if offset >= 0 && len >= 0 && offset + len <= String.length s
+	then unsafe_output_substring oi s offset len
+	else invalid_arg "Iconv.output_substring" (* __FUNCTION__ *)
+);;
+
+let output_string (oi: out_iconv) (s: string) = (
+	unsafe_output_substring oi s 0 (String.length s)
 );;
 
 let flush (_, state: out_iconv) = (
