@@ -42,9 +42,9 @@ struct mliconv_t {
 #define WSIZE_32_MLICONV (4 * 6)
 #define WSIZE_64_MLICONV (8 * 5)
 
-static inline struct mliconv_t *mliconv_val(value data)
+static inline struct mliconv_t *mliconv_val(value v)
 {
-	return (struct mliconv_t *)(Data_custom_val(data));
+	return (struct mliconv_t *)(Data_custom_val(v));
 }
 
 static void get_substitute(
@@ -54,10 +54,10 @@ static void get_substitute(
 static bool get_force_substitute(struct mliconv_t *internal);
 static void set_force_substitute(struct mliconv_t *internal, bool enabled);
 
-static void mliconv_finalize(value r);
+static void mliconv_finalize(value v);
 #if defined(SUPPORT_COMPARISON)
-static int mliconv_compare(value left, value right);
-static long mliconv_hash(value data);
+static int mliconv_compare(value v1, value v2);
+static long mliconv_hash(value v);
 #endif
 #if defined(SUPPORT_SERIALIZATION)
 static void mliconv_serialize(
@@ -83,10 +83,10 @@ static struct custom_operations iconv_ops = {
 	.deserialize = custom_deserialize_default};
 #endif
 
-static void mliconv_finalize(value data)
+static void mliconv_finalize(value v)
 {
-	CAMLparam1(data);
-	struct mliconv_t *internal = mliconv_val(data);
+	CAMLparam1(v);
+	struct mliconv_t *internal = mliconv_val(v);
 	iconv_close(internal->handle);
 	caml_stat_free(internal->tocode);
 	caml_stat_free(internal->fromcode);
@@ -95,11 +95,11 @@ static void mliconv_finalize(value data)
 
 #if defined(SUPPORT_COMPARISON)
 
-static int mliconv_compare(value left, value right)
+static int mliconv_compare(value v1, value v2)
 {
-	CAMLparam2(left, right);
-	struct mliconv_t *left_internal = mliconv_val(left);
-	struct mliconv_t *right_internal = mliconv_val(right);
+	CAMLparam2(v1, v2);
+	struct mliconv_t *left_internal = mliconv_val(v1);
+	struct mliconv_t *right_internal = mliconv_val(v2);
 	int result = strcmp(left_internal->tocode, right_internal->tocode);
 	if(result == 0){
 		result = strcmp(left_internal->fromcode, right_internal->fromcode);
@@ -127,10 +127,10 @@ static int mliconv_compare(value left, value right)
 	CAMLreturnT(int, result);
 }
 
-static long mliconv_hash(value data)
+static long mliconv_hash(value v)
 {
-	CAMLparam1(data);
-	struct mliconv_t *internal = mliconv_val(data);
+	CAMLparam1(v);
+	struct mliconv_t *internal = mliconv_val(v);
 	long result = (strlen(internal->tocode) << 4) + strlen(internal->fromcode);
 	CAMLreturnT(long, result);
 }
@@ -371,14 +371,14 @@ CAMLprim value mliconv_get_version_opt(void)
 
 /* converting functions */
 
-CAMLprim value mliconv_open(value tocodev, value fromcodev)
+CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 {
-	CAMLparam2(tocodev, fromcodev);
-	CAMLlocal1(result);
-	const char *tocode = String_val(tocodev);
-	size_t to_len = caml_string_length(tocodev);
-	const char *fromcode = String_val(fromcodev);
-	size_t from_len = caml_string_length(fromcodev);
+	CAMLparam2(val_tocode, val_fromcode);
+	CAMLlocal1(val_result);
+	const char *tocode = String_val(val_tocode);
+	size_t to_len = caml_string_length(val_tocode);
+	const char *fromcode = String_val(val_fromcode);
+	size_t from_len = caml_string_length(val_fromcode);
 	iconv_t handle = iconv_open(tocode, fromcode);
 	if(handle == (iconv_t)-1){
 		char message[to_len + from_len + 128];
@@ -389,8 +389,8 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 			fromcode);
 		caml_failwith(message);
 	}
-	result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
-	struct mliconv_t *internal = mliconv_val(result);
+	val_result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
+	struct mliconv_t *internal = mliconv_val(val_result);
 	internal->handle = handle;
 	internal->tocode = NULL; /* for the case that caml_stat_strdup fails */
 	internal->fromcode = NULL; /* same as above */
@@ -402,16 +402,16 @@ CAMLprim value mliconv_open(value tocodev, value fromcodev)
 	internal->fromcode = caml_stat_strdup(fromcode);
 	internal->substitute_length = -1;
 	internal->min_sequence_in_fromcode = -1;
-	CAMLreturn(result);
+	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_convert(value conv, value source)
+CAMLprim value mliconv_convert(value val_conv, value val_source)
 {
-	CAMLparam2(conv, source);
-	CAMLlocal1(result);
-	struct mliconv_t *internal = mliconv_val(conv);
-	/* const */ char *s = (char *)String_val(source);
-	size_t s_len = caml_string_length(source);
+	CAMLparam2(val_conv, val_source);
+	CAMLlocal1(val_result);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	/* const */ char *s = (char *)String_val(val_source);
+	size_t s_len = caml_string_length(val_source);
 	size_t d_len = s_len * MAX_SEQUENCE;
 	char *d = malloc(d_len);
 	char *d_current = d;
@@ -443,9 +443,9 @@ CAMLprim value mliconv_convert(value conv, value source)
 		caml_failwith(__func__);
 	}
 	size_t result_len = d_current - d;
-	result = caml_alloc_initialized_string(result_len, d);
+	val_result = caml_alloc_initialized_string(result_len, d);
 	free(d);
-	CAMLreturn(result);
+	CAMLreturn(val_result);
 }
 
 CAMLprim value mliconv_iconv(value val_conv, value val_state, value val_finish)
@@ -523,22 +523,22 @@ CAMLprim value mliconv_iconv_reset(value val_conv)
 	CAMLreturn(Val_unit);
 }
 
-CAMLprim value mliconv_tocode(value conv)
+CAMLprim value mliconv_tocode(value val_conv)
 {
-	CAMLparam1(conv);
-	CAMLlocal1(result);
-	struct mliconv_t *internal = mliconv_val(conv);
-	result = caml_copy_string(internal->tocode);
-	CAMLreturn(result);
+	CAMLparam1(val_conv);
+	CAMLlocal1(val_result);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	val_result = caml_copy_string(internal->tocode);
+	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_fromcode(value conv)
+CAMLprim value mliconv_fromcode(value val_conv)
 {
-	CAMLparam1(conv);
-	CAMLlocal1(result);
-	struct mliconv_t *internal = mliconv_val(conv);
-	result = caml_copy_string(internal->fromcode);
-	CAMLreturn(result);
+	CAMLparam1(val_conv);
+	CAMLlocal1(val_result);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	val_result = caml_copy_string(internal->fromcode);
+	CAMLreturn(val_result);
 }
 
 CAMLprim value mliconv_substitute(value val_conv)
