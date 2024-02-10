@@ -351,9 +351,9 @@ static void skip_min_sequence(
 
 /* version functions */
 
-CAMLprim value mliconv_get_version_opt(void)
+CAMLprim value mliconv_get_version_opt(value val_unit)
 {
-	CAMLparam0();
+	CAMLparam1(val_unit);
 #if defined(_LIBICONV_VERSION)
 	CAMLlocal2(val_result, val_tuple);
 	int version = _libiconv_version;
