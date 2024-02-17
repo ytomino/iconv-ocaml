@@ -4,7 +4,7 @@ open Iconv;;
 
 let c = iconv_open ~tocode:"sjis" ~fromcode:"utf-8";;
 let s = "ソースコード直書きのUTF-8文字列です\n" in
-let x = iconv c s in
+let x = iconv_string c s in
 if verbose then print_endline (String.escaped x);
 assert (
 	x = "\131\\\129[\131X\131R\129[\131h\146\188\143\145\130\171\130\204UTF-8"
@@ -13,13 +13,13 @@ assert (
 
 let c = iconv_open ~tocode:"ISO-2022-JP" ~fromcode:"ISO-8859-1" in
 let s = "\xA2" in
-let x = iconv c s in
+let x = iconv_string c s in
 if verbose then print_endline (String.escaped x);
 assert (x = "\x1B\x24\x42\x21\x71\x1B\x28\x42");;
 
 let c = iconv_open ~tocode:"ISO-2022-JP" ~fromcode:"UTF-8" in
 let s = "Aあ" in
-let x = iconv c s in
+let x = iconv_string c s in
 if verbose then print_endline (String.escaped x);
 assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
 

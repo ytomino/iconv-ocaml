@@ -5,40 +5,41 @@ let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-8" in
 assert (min_sequence_in_fromcode iconv = 1);
 Iconv.set_substitute iconv "-"; (* That customize substitution text. *)
 if not (Iconv.force_substitute iconv) then (
-	assert (Iconv.iconv iconv "\xC4\x80" = "?")
+	assert (Iconv.iconv_string iconv "\xC4\x80" = "?")
 	(* When Citrus internally substitution is active, that can skip best length,
 	   but application can not customize substitution text. *)
 );
 Iconv.set_force_substitute iconv true;
-assert (Iconv.iconv iconv "\xC4\x80" = "--");; (* That is customized text. *)
-	(* A fallback handler is needed to return "?". *)
+assert (Iconv.iconv_string iconv "\xC4\x80" = "--");;
+	(* That is customized text.
+	   A fallback handler is needed to return "?". *)
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-16BE" in
 assert (min_sequence_in_fromcode iconv = 2);
-assert (Iconv.iconv iconv "\x01\x00" = "?");;
+assert (Iconv.iconv_string iconv "\x01\x00" = "?");;
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-32BE" in
 assert (min_sequence_in_fromcode iconv = 4);
-assert (Iconv.iconv iconv "\x00\x00\x01\x00" = "?");;
+assert (Iconv.iconv_string iconv "\x00\x00\x01\x00" = "?");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-8" ~fromcode:"UTF-16BE" in
-assert (Iconv.iconv iconv "\x01\x00" = "\xC4\x80");
-assert (Iconv.iconv iconv "\xDF\xFF" = "?");
+assert (Iconv.iconv_string iconv "\x01\x00" = "\xC4\x80");
+assert (Iconv.iconv_string iconv "\xDF\xFF" = "?");
 Iconv.set_substitute iconv "";
-assert (Iconv.iconv iconv "\xDF\xFF" = "");;
+assert (Iconv.iconv_string iconv "\xDF\xFF" = "");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-16BE" ~fromcode:"UTF-8" in
-assert (Iconv.iconv iconv "\xFF" = "\x00\x3F");
+assert (Iconv.iconv_string iconv "\xFF" = "\x00\x3F");
 Iconv.set_substitute iconv "";
-assert (Iconv.iconv iconv "\xFF" = "");;
+assert (Iconv.iconv_string iconv "\xFF" = "");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-16BE" ~fromcode:"UTF-32BE" in
-assert (Iconv.iconv iconv "\x00\x00\x01\x00" = "\x01\x00");;
+assert (Iconv.iconv_string iconv "\x00\x00\x01\x00" = "\x01\x00");;
 
 let iconv = Iconv.iconv_open ~tocode:"UTF-32BE" ~fromcode:"UTF-8" in
-assert (Iconv.iconv iconv "\xFF" = "\x00\x00\x00\x3F");
+assert (Iconv.iconv_string iconv "\xFF" = "\x00\x00\x00\x3F");
 Iconv.set_substitute iconv "";
-assert (Iconv.iconv iconv "\xFF" = "");;
+assert (Iconv.iconv_string iconv "\xFF" = "");;
 
 let buf = Buffer.create 256 in
 let w = Iconv.open_out ~tocode:"UTF-32BE" ~fromcode:"UTF-16BE"

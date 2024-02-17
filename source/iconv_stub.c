@@ -405,7 +405,7 @@ CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_convert(value val_conv, value val_source)
+CAMLprim value mliconv_string(value val_conv, value val_source)
 {
 	CAMLparam2(val_conv, val_source);
 	CAMLlocal1(val_result);
