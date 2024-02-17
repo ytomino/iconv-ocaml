@@ -405,13 +405,14 @@ CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_string(value val_conv, value val_source)
+CAMLprim value mliconv_unsafe_iconv_substring(
+	value val_conv, value val_source, value val_pos, value val_len)
 {
 	CAMLparam2(val_conv, val_source);
 	CAMLlocal1(val_result);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	/* const */ char *s = (char *)String_val(val_source);
-	size_t s_len = caml_string_length(val_source);
+	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
+	size_t s_len = Long_val(val_len);
 	size_t d_len = s_len * MAX_SEQUENCE;
 	char *d = malloc(d_len);
 	char *d_current = d;

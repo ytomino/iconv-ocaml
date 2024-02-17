@@ -11,7 +11,19 @@ type iconv_t;;
 
 external iconv_open: tocode:string -> fromcode:string -> iconv_t =
 	"mliconv_open";;
-external iconv_string: iconv_t -> string -> string = "mliconv_string";;
+
+external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
+	"mliconv_unsafe_iconv_substring";;
+
+let iconv_substring (cd: iconv_t) (s: string) (pos: int) (len: int) = (
+	if pos >= 0 && len >= 0 && pos + len <= String.length s
+	then unsafe_iconv_substring cd s pos len
+	else invalid_arg "Iconv.iconv_substring" (* __FUNCTION__ *)
+);;
+
+let iconv_string (cd: iconv_t) (s: string) = (
+	unsafe_iconv_substring cd s 0 (String.length s)
+);;
 
 external substitute: iconv_t -> string = "mliconv_substitute";;
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute";;

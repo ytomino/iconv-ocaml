@@ -8,7 +8,9 @@ type iconv_t
 
 external iconv_open: tocode:string -> fromcode:string -> iconv_t =
 	"mliconv_open"
-external iconv_string: iconv_t -> string -> string = "mliconv_string"
+
+val iconv_substring: iconv_t -> string -> int -> int -> string
+val iconv_string: iconv_t -> string -> string
 
 external substitute: iconv_t -> string = "mliconv_substitute"
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute"

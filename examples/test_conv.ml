@@ -9,7 +9,12 @@ if verbose then print_endline (String.escaped x);
 assert (
 	x = "\131\\\129[\131X\131R\129[\131h\146\188\143\145\130\171\130\204UTF-8"
 		^ "\149\182\142\154\151\241\130\197\130\183\n"
-);;
+);
+assert (iconv_substring c s 0 (String.length s) = x);
+assert (iconv_substring c s 0 3 = "\131\\");
+assert (iconv_substring c s (String.length s - 1) 1 = "\n");
+assert (iconv_substring c s 0 0 = "");
+assert (iconv_substring c s (String.length s) 0 = "");;
 
 let c = iconv_open ~tocode:"ISO-2022-JP" ~fromcode:"ISO-8859-1" in
 let s = "\xA2" in
