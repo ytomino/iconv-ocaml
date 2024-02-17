@@ -8,7 +8,7 @@ let marshal (x: 'a) = (
 
 let check_marshal (x: iconv_t) = (
 	let y = marshal x in
-	iconv_tocode x = iconv_tocode y && iconv_fromcode y = iconv_fromcode y
+	tocode x = tocode y && fromcode y = fromcode y
 );;
 
 let c = iconv_open ~tocode:"sjis" ~fromcode:"euc-jp" in

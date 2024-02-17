@@ -32,7 +32,7 @@ type out_state = {
 
 type out_iconv = iconv_t * out_state;;
 
-external iconv_step: iconv_t -> out_state -> bool -> bool = "mliconv_iconv";;
+external iconv: iconv_t -> out_state -> bool -> bool = "mliconv_iconv";;
 external iconv_end: iconv_t -> out_state -> bool = "mliconv_iconv_end";;
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
 
@@ -78,7 +78,7 @@ let unsafe_output_substring (cd, state: out_iconv) (s: string) (offset: int)
 		state.inbytesleft <- inbuf_length
 	);
 	let rec loop () = (
-		if iconv_step cd state false then ()
+		if iconv cd state false then ()
 		else (
 			do_flush state;
 			loop ()
@@ -103,9 +103,9 @@ let flush (_, state: out_iconv) = (
 
 let end_out (cd, state: out_iconv) = (
 	let loc = "Iconv.end_out" (* __FUNCTION__ *) in
-	if state.inbytesleft > 0 && not (iconv_step cd state true) then (
+	if state.inbytesleft > 0 && not (iconv cd state true) then (
 		do_flush state;
-		if not (iconv_step cd state true) then failwith loc
+		if not (iconv cd state true) then failwith loc
 	);
 	if not (iconv_end cd state) then (
 		do_flush state;
