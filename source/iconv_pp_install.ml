@@ -5,4 +5,5 @@ module Longident = struct
 		| Lapply of t * t;;
 end;;
 open Longident;;
-Topdirs.dir_install_printer Format.std_formatter (Obj.magic (Ldot (Lident "Iconv_pp", "pp_iconv")))
+Topdirs.dir_install_printer Format.std_formatter
+	(Obj.magic (Ldot (Lident "Iconv_pp", "pp_iconv")));;
