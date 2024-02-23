@@ -152,6 +152,10 @@ static void mliconv_serialize(
 	size_t from_len = strlen(internal->fromcode);
 	caml_serialize_int_4(from_len);
 	caml_serialize_block_1(internal->fromcode, from_len);
+	caml_serialize_int_1(internal->substitute_length);
+	if(internal->substitute_length > 0){
+		caml_serialize_block_1(internal->substitute, internal->substitute_length);
+	}
 	caml_serialize_int_1(get_force_substitute(internal));
 	CAMLreturn0;
 }
@@ -187,7 +191,10 @@ static unsigned long mliconv_deserialize(void *dst)
 	internal->handle = handle;
 	internal->tocode = tocode;
 	internal->fromcode = fromcode;
-	internal->substitute_length = -1;
+	internal->substitute_length = caml_deserialize_sint_1();
+	if(internal->substitute_length > 0){
+		caml_deserialize_block_1(internal->substitute, internal->substitute_length);
+	}
 	internal->min_sequence_in_fromcode = -1;
 	set_force_substitute(internal, caml_deserialize_uint_1());
 	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
