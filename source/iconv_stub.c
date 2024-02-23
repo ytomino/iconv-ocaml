@@ -401,6 +401,9 @@ CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 	internal->handle = handle;
 	internal->tocode = NULL; /* for the case that caml_stat_strdup fails */
 	internal->fromcode = NULL; /* same as above */
+	/* Recall String_val because caml_alloc_custom can occur heap compaction. */
+	tocode = String_val(val_tocode);
+	fromcode = String_val(val_fromcode);
 #if !defined(__GNU_LIBRARY__) || defined(_LIBICONV_VERSION)
 	tocode = iconv_canonicalize(tocode);
 	fromcode = iconv_canonicalize(fromcode);
