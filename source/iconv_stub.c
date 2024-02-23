@@ -416,12 +416,13 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 	value val_conv, value val_source, value val_pos, value val_len)
 {
 	CAMLparam2(val_conv, val_source);
-	CAMLlocal1(val_result);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
+	CAMLlocal2(val_result, val_d);
 	size_t s_len = Long_val(val_len);
 	size_t d_len = s_len * MAX_SEQUENCE;
-	char *d = malloc(d_len);
+	val_d = caml_alloc_string(d_len);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
+	char *d = (char *)Bytes_val(val_d);
 	char *d_current = d;
 	bool failed = false;
 	while(s_len > 0){
@@ -447,12 +448,10 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 	}
 	if(failed){
 		iconv(internal->handle, NULL, NULL, NULL, NULL);
-		free(d);
 		caml_failwith(__func__);
 	}
 	size_t result_len = d_current - d;
 	val_result = caml_alloc_initialized_string(result_len, d);
-	free(d);
 	CAMLreturn(val_result);
 }
 
