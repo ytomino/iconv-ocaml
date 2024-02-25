@@ -14,9 +14,9 @@ WLFLAGS=$(and $(WITH_ICONV),-L$(WITH_ICONV)/lib)
 
 OCAMLCFLAGS=-w +a
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
-CFLAGS=$(WIFLAGS) -Wall -Wextra -Wno-unused-result \
-       $(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
-       $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION)
+CFLAGS=$(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
+       $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION) \
+       -Wall -Wextra -Wno-unused-result $(WIFLAGS)
 
 LDFLAGS=$(WLFLAGS)
 LDLIB=$(if $(findstring linux-gnu,$(TARGET)),,-liconv)
