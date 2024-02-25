@@ -8,8 +8,14 @@ OCAMLC=$(PROGRAMPREFIX)ocamlc
 OCAMLOPT=$(or $(filter-out $(OCAMLC),$(OCAMLC:c=opt)),$(PROGRAMPREFIX)ocamlopt)
 RLWRAP?=
 
-OCAMLCFLAGS=
+DEBUG=
+
+OCAMLCFLAGS=$(and $(filter-out 0,$(DEBUG)),-g)
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
+OCAMLCFLAGS_EXE=$(and $(filter-out 0,$(DEBUG)),-g)
+OCAMLOPTFLAGS_EXE=$(OCAMLCFLAGS_EXE) $(addprefix -ccopt ,$(LDFLAGS))
+LDFLAGS?=
+
 SUPPORT_COMPARISON=1
 SUPPORT_SERIALIZATION=1
 
@@ -32,11 +38,15 @@ all: \
 
 $(BUILDDIR)/%.byte.exe: %.ml $(BUILDDIR)/iconv.cma
 	$(OCAMLC) -c $(OCAMLCFLAGS) -o $(BUILDDIR)/$*.cmo -I $(BUILDDIR) $<
-	$(OCAMLC) -o $@ -I $(BUILDDIR) iconv.cma $(BUILDDIR)/$*.cmo
+	$(OCAMLC) $(strip \
+		$(OCAMLCFLAGS_EXE) \
+		-o $@ -I $(BUILDDIR) iconv.cma $(BUILDDIR)/$*.cmo)
 
 $(BUILDDIR)/%.opt.exe: %.ml $(BUILDDIR)/iconv.cmxa
 	$(OCAMLOPT) -c $(OCAMLOPTFLAGS) -o $(BUILDDIR)/$*.cmx -I $(BUILDDIR) $<
-	$(OCAMLOPT) -o $@ -I $(BUILDDIR) iconv.cmxa $(BUILDDIR)/$*.cmx
+	$(OCAMLOPT) $(strip \
+		$(OCAMLOPTFLAGS_EXE) \
+		-o $@ -I $(BUILDDIR) iconv.cmxa $(BUILDDIR)/$*.cmx)
 
 check: all $(TESTS)
 

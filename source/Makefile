@@ -8,13 +8,16 @@ CSRC=iconv_stub.c
 LIBNAME=iconv
 STUBLIBNAME=ml$(LIBNAME)
 
+DEBUG=
+
 WITH_ICONV?=
 WIFLAGS=$(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
 WLFLAGS=$(and $(WITH_ICONV),-L$(WITH_ICONV)/lib)
 
-OCAMLCFLAGS=-w +a
+OCAMLCFLAGS=$(and $(filter-out 0,$(DEBUG)),-g) -w +a
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
-CFLAGS=$(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
+CFLAGS=$(and $(filter-out 0,$(DEBUG)),-g$(DEBUG)) \
+       $(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
        $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION) \
        -Wall -Wextra -Wno-unused-result $(WIFLAGS)
 
