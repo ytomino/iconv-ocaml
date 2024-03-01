@@ -21,4 +21,4 @@ assert (
 
 (* report *)
 
-Printf.eprintf "ok\n";;
+prerr_endline "ok";;

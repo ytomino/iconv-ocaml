@@ -62,4 +62,4 @@ assert (x = "\x00\x02\xF8\x00");;
 
 (* report *)
 
-Printf.eprintf "ok\n";;
+prerr_endline "ok";;

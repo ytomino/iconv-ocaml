@@ -20,4 +20,4 @@ match check_marshal c with
 	exit 1
 | checked ->
 	assert checked;
-	Printf.eprintf "ok\n";;
+	prerr_endline "ok";;
