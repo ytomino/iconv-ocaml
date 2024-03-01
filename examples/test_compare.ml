@@ -13,4 +13,4 @@ assert (Hashtbl.hash x <> Hashtbl.hash y);;
 
 (* report *)
 
-Printf.eprintf "ok\n";;
+prerr_endline "ok";;

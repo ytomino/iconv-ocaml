@@ -46,4 +46,4 @@ assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42\x3F");;
 
 (* report *)
 
-Printf.eprintf "ok\n";;
+prerr_endline "ok";;
