@@ -9,6 +9,7 @@ OCAMLOPT=$(or $(filter-out $(OCAMLC),$(OCAMLC:c=opt)),$(PROGRAMPREFIX)ocamlopt)
 RLWRAP?=
 
 DEBUG=
+ASSERT=1
 
 OCAMLCFLAGS=$(and $(filter-out 0,$(DEBUG)),-g)
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
@@ -66,6 +67,7 @@ $(and $(OCAMLOPT),$(BUILDDIR)/iconv.cmxa)&: \
 		-C ../source install \
 		BUILDDIR=$(abspath $(ICONV_BUILDDIR)) \
 		INSTALLDIR=$(abspath $(BUILDDIR)) \
+		ASSERT=$(ASSERT) \
 		SUPPORT_COMPARISON=$(SUPPORT_COMPARISON) \
 		SUPPORT_SERIALIZATION=$(SUPPORT_SERIALIZATION))
 
