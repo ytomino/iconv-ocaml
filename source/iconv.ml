@@ -36,7 +36,7 @@ type out_state = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;
 	mutable inbytesleft: int;
-	outbuf: bytes;
+	mutable outbuf: bytes;
 	mutable outbuf_offset: int;
 	mutable outbytesleft: int;
 	f: (string -> int -> int -> unit)
@@ -48,18 +48,19 @@ external iconv: iconv_t -> out_state -> bool -> bool = "mliconv_iconv";;
 external iconv_end: iconv_t -> out_state -> bool = "mliconv_iconv_end";;
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
 
+let outbuf_capacity = 240;;
+
 let open_out ~(tocode: string) ~(fromcode: string)
 	(f: string -> int -> int -> unit) =
 (
 	let cd = iconv_open ~tocode ~fromcode in
-	let outbuf_length = 240 in
 	cd, {
 		inbuf = "";
 		inbuf_offset = 0;
 		inbytesleft = 0;
-		outbuf = Bytes.create outbuf_length;
+		outbuf = Bytes.create outbuf_capacity;
 		outbuf_offset = 0;
-		outbytesleft = outbuf_length;
+		outbytesleft = outbuf_capacity;
 		f
 	}
 );;
@@ -67,9 +68,11 @@ let open_out ~(tocode: string) ~(fromcode: string)
 let do_flush (state: out_state) = (
 		let out_length = state.outbuf_offset in
 		if out_length > 0 then (
+			state.f (Bytes.unsafe_to_string state.outbuf) 0 out_length;
+			let outbuf_length = Bytes.length state.outbuf in
 			state.outbuf_offset <- 0;
-			state.outbytesleft <- Bytes.length state.outbuf;
-			state.f (Bytes.unsafe_to_string state.outbuf) 0 out_length
+			state.outbuf <- Bytes.create outbuf_length;
+			state.outbytesleft <- outbuf_length
 		)
 );;
 
@@ -123,13 +126,23 @@ let end_out (cd, state: out_iconv) = (
 		do_flush state;
 		if not (iconv_end cd state) then failwith loc
 	);
-	do_flush state
+	(* No need to reset the output buffer for reuse. *)
+	let out_length = state.outbuf_offset in
+	if out_length > 0 then (
+		state.f (Bytes.unsafe_to_string state.outbuf) 0 out_length;
+		state.outbuf <- Bytes.empty;
+		state.outbytesleft <- 0
+	)
 );;
 
 let reset_out (cd, state: out_iconv) = (
 	iconv_reset cd;
 	state.inbuf_offset <- 0;
 	state.inbytesleft <- 0;
+	(* Restore from the ended state. *)
 	state.outbuf_offset <- 0;
-	state.outbytesleft <- Bytes.length state.outbuf
+	if Bytes.length state.outbuf <> outbuf_capacity then (
+		state.outbuf <- Bytes.create outbuf_capacity
+	);
+	state.outbytesleft <- outbuf_capacity
 );;
