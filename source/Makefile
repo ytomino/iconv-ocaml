@@ -12,8 +12,6 @@ DEBUG=
 ASSERT=
 
 WITH_ICONV?=
-WIFLAGS=$(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
-WLFLAGS=$(and $(WITH_ICONV),-L$(WITH_ICONV)/lib)
 
 OCAMLCFLAGS=$(and $(filter-out 0,$(DEBUG)),-g) $(if $(ASSERT),,-noassert) -w +a
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
@@ -21,11 +19,15 @@ CFLAGS=$(and $(filter-out 0,$(DEBUG)),-g$(DEBUG)) \
        $(and $(ASSERT),-DDEBUG -DNDEBUG) \
        $(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
        $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION) \
-       -Wall -Wextra -Wno-unused-result $(WIFLAGS)
+       -Wall -Wextra -Wno-unused-result \
+       $(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
 
-LDFLAGS=$(WLFLAGS)
-LDLIB=$(if $(findstring linux-gnu,$(TARGET)),,-liconv)
-CCLIB=$(addprefix -cclib ,$(WLFLAGS) $(LDLIB))
+LD_ICONV=$(or \
+           $(and $(WITH_ICONV),-L$(WITH_ICONV)/lib -liconv), \
+           $(if $(findstring linux-gnu,$(TARGET)),,-liconv))
+
+CCLIB=$(addprefix -cclib ,$(LD_ICONV))
+LDLIB=$(LD_ICONV)
 
 SUPPORT_COMPARISON=
 SUPPORT_SERIALIZATION=
