@@ -138,7 +138,6 @@ let end_out (cd, state: out_iconv) = (
 
 let reset_out (cd, state: out_iconv) = (
 	iconv_reset cd;
-	state.inbuf_offset <- 0;
 	state.inbytesleft <- 0;
 	(* Restore from the ended state. *)
 	state.outbuf_offset <- 0;
