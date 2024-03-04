@@ -122,6 +122,7 @@ let end_out (cd, state: out_iconv) = (
 		do_flush state;
 		if not (iconv cd state true) then failwith loc
 	);
+	assert (state.inbytesleft = 0);
 	if not (iconv_end cd state) then (
 		do_flush state;
 		if not (iconv_end cd state) then failwith loc
