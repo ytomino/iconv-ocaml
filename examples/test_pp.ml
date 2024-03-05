@@ -1,11 +1,10 @@
-let verbose = Array.length Sys.argv > 1 && Sys.argv.(1) = "--verbose";;
+let f fmt = Lib_test.f __FILE__ fmt;;
 
 open Iconv;;
 open Iconv_pp;;
 let c = iconv_open ~tocode:"sjis" ~fromcode:"utf-8";;
 set_force_substitute c true;
-let x = Format.asprintf "%a@." pp_iconv c in
-if verbose then Printf.printf "%s\n" (String.escaped x);
+let x = Format.asprintf "%a@." pp_iconv c |> f __LINE__ "%S" in
 assert (
 	x = "<\
 		tocode = \"SHIFT_JIS\"; \
