@@ -1,3 +1,7 @@
+(* This feature is turned on/off by Makefile variable SUPPORT_SERIALIZATION. *)
+
+let f fmt = Lib_test.f __FILE__ fmt;;
+
 open Iconv;;
 open Iconv_pp;;
 
@@ -14,10 +18,10 @@ let check_marshal (x: iconv_t) = (
 
 let c = iconv_open ~tocode:"sjis" ~fromcode:"euc-jp" in
 match check_marshal c with
-| exception Invalid_argument message ->
-	Printf.eprintf "%s: configured to no serialization, \"%s\"\n" Sys.argv.(0)
-		message;
+| exception (Invalid_argument _ as exn) ->
+	let _: string = f __LINE__ "%s" (Printexc.to_string exn) in
+	Printf.eprintf "%s: configured as no serialization.\n" Sys.argv.(0);
 	exit 1
 | checked ->
-	assert checked;
+	assert (checked |> f __LINE__ "%B");
 	prerr_endline "ok";;
