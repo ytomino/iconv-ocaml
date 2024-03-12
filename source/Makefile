@@ -15,12 +15,13 @@ WITH_ICONV?=
 
 OCAMLCFLAGS=$(and $(filter-out 0,$(DEBUG)),-g) $(if $(ASSERT),,-noassert) -w +a
 OCAMLOPTFLAGS=$(OCAMLCFLAGS)
+OCAML_INCLUDE_FLAGS=
 CFLAGS=$(and $(filter-out 0,$(DEBUG)),-g$(DEBUG)) \
        $(and $(ASSERT),-DDEBUG -DNDEBUG) \
        $(and $(SUPPORT_COMPARISON),-DSUPPORT_COMPARISON) \
        $(and $(SUPPORT_SERIALIZATION),-DSUPPORT_SERIALIZATION) \
-       -Wall -Wextra -Wno-unused-result \
-       $(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
+       -Wall -Wextra -Wno-unused-result
+C_INCLUDE_FLAGS=$(and $(WITH_ICONV),-I$(WITH_ICONV)/include)
 
 LD_ICONV=$(or \
            $(and $(WITH_ICONV),-L$(WITH_ICONV)/lib -liconv), \
