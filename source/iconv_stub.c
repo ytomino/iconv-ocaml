@@ -28,6 +28,13 @@
 /* For example: ISO-8859-1 "\xA2" ("¢") is converted to
    ISO-2022-JP "\x1B\x24\x42\x21\x71\x1B\x28\x42". */
 
+/* polymorphic variants */
+
+enum {
+	Val_ok = 0x0000c239,
+	Val_overflow = -0x7d88397b /* 0x8277c685 */
+};
+
 /* custom data */
 
 struct mliconv_t {
@@ -462,7 +469,8 @@ CAMLprim value mliconv_iconv_substitute(
 	value val_conv, value val_fields, value val_finish)
 {
 	CAMLparam3(val_conv, val_fields, val_finish);
-	bool result = true;
+	CAMLlocal1(val_result);
+	val_result = Val_ok;
 	struct mliconv_t *internal = mliconv_val(val_conv);
 	char *inbuf_start = (char *)String_val(Field(val_fields, 0));
 	char *inbuf = inbuf_start + Long_val(Field(val_fields, 1));
@@ -476,7 +484,7 @@ CAMLprim value mliconv_iconv_substitute(
 		{
 			int e = errno;
 			if(e == E2BIG){
-				result = false;
+				val_result = Val_overflow;
 				break;
 			}else if(e == EINVAL && !Bool_val(val_finish)){ /* truncated */
 				break;
@@ -484,7 +492,7 @@ CAMLprim value mliconv_iconv_substitute(
 				if(put_substitute(internal, &outbuf, &outbytesleft) < 0){
 					e = errno;
 					if(e == E2BIG){
-						result = false;
+						val_result = Val_overflow;
 						break;
 					}else{
 						caml_failwith(__func__);
@@ -500,13 +508,14 @@ CAMLprim value mliconv_iconv_substitute(
 	Store_field(val_fields, 2, Val_long(inbytesleft));
 	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
 	Store_field(val_fields, 5, Val_long(outbytesleft));
-	CAMLreturn(Val_bool(result));
+	CAMLreturn(val_result);
 }
 
 CAMLprim value mliconv_iconv_end(value val_conv, value val_fields)
 {
 	CAMLparam2(val_conv, val_fields);
-	bool result = true;
+	CAMLlocal1(val_result);
+	val_result = Val_ok;
 	struct mliconv_t *internal = mliconv_val(val_conv);
 	char *outbuf_start = (char *)Bytes_val(Field(val_fields, 3));
 	char *outbuf = outbuf_start + Long_val(Field(val_fields, 4));
@@ -514,14 +523,14 @@ CAMLprim value mliconv_iconv_end(value val_conv, value val_fields)
 	if(iconv(internal->handle, NULL, NULL, &outbuf, &outbytesleft) == (size_t)-1){
 		int e = errno;
 		if(e == E2BIG){
-			result = false;
+			val_result = Val_overflow;
 		}else{
 			caml_failwith(__func__);
 		}
 	}
 	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
 	Store_field(val_fields, 5, Val_long(outbytesleft));
-	CAMLreturn(Val_bool(result));
+	CAMLreturn(val_result);
 }
 
 CAMLprim value mliconv_iconv_reset(value val_conv)
