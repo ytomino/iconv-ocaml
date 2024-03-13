@@ -458,7 +458,7 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_iconv(
+CAMLprim value mliconv_iconv_substitute(
 	value val_conv, value val_fields, value val_finish)
 {
 	CAMLparam3(val_conv, val_fields, val_finish);
