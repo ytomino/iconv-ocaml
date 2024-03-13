@@ -28,11 +28,33 @@ type iconv_fields = {
 	mutable outbytesleft: int
 };;
 
-external iconv_substitute: iconv_t -> iconv_fields -> bool ->
+external unsafe_iconv_substitute: iconv_t -> iconv_fields -> bool ->
 	[> `ok | `overflow] =
-	"mliconv_iconv_substitute";;
-external iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow] =
-	"mliconv_iconv_end";;
+	"mliconv_unsafe_iconv_substitute";;
+
+let iconv_substitute (cd: iconv_t) (fields: iconv_fields) (finish: bool) = (
+	let {inbuf; inbuf_offset; inbytesleft; outbuf; outbuf_offset; outbytesleft} =
+		fields
+	in
+	if inbuf_offset >= 0 && inbytesleft >= 0
+		&& inbuf_offset + inbytesleft <= String.length inbuf
+		&& outbuf_offset >= 0 && outbytesleft >= 0
+		&& outbuf_offset + outbytesleft <= Bytes.length outbuf
+	then unsafe_iconv_substitute cd fields finish
+	else invalid_arg "Iconv.iconv_substitute" (* __FUNCTION__ *)
+);;
+
+external unsafe_iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow] =
+	"mliconv_unsafe_iconv_end";;
+
+let iconv_end (cd: iconv_t) (fields: iconv_fields) = (
+	let {outbuf; outbuf_offset; outbytesleft; _} = fields in
+	if outbuf_offset >= 0 && outbytesleft >= 0
+		&& outbuf_offset + outbytesleft <= Bytes.length outbuf
+	then unsafe_iconv_end cd fields
+	else invalid_arg "Iconv.iconv_end" (* __FUNCTION__ *)
+);;
+
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
 
 external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
