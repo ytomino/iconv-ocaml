@@ -36,13 +36,4 @@ val iconv_substitute: iconv_t -> iconv_fields -> bool -> [> `ok | `overflow]
 val iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow]
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset"
 
-type out_state
-type out_iconv = iconv_t * out_state
-
-val open_out: tocode:string -> fromcode:string ->
-	(string -> int -> int -> unit) -> out_iconv
-val output_substring: out_iconv -> string -> int -> int -> unit
-val output_string: out_iconv -> string -> unit
-val flush: out_iconv -> unit
-val end_out: out_iconv -> unit
-val reset_out: out_iconv -> unit
+module Out_iconv = Iconv__Out_iconv

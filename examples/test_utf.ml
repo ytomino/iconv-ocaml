@@ -59,23 +59,24 @@ let x = Iconv.iconv_string iconv "\xFF" |> f __LINE__ "%S" in
 assert (x = "");;
 
 let buf = Buffer.create 256 in
-let w = Iconv.open_out ~tocode:"UTF-32BE" ~fromcode:"UTF-16BE"
-	(Buffer.add_substring buf)
+let w =
+	Iconv.Out_iconv.open_out ~tocode:"UTF-32BE" ~fromcode:"UTF-16BE"
+		(Buffer.add_substring buf)
 in
 let s = "\xD8\x7E\xDC\x00" in (* U+2F800 *)
-Iconv.output_substring w s 0 2; (* high surrogate *)
+Iconv.Out_iconv.output_substring w s 0 2; (* high surrogate *)
 let len = Buffer.length buf |> f __LINE__ "%d" in
 assert (len = 0); (* pending *)
-Iconv.output_substring w s 3 1; (* low surrogate but truncated *)
+Iconv.Out_iconv.output_substring w s 3 1; (* low surrogate but truncated *)
 let len = Buffer.length buf |> f __LINE__ "%d" in
 assert (len = 0); (* pending *)
-Iconv.end_out w;
+Iconv.Out_iconv.end_out w;
 let x = Buffer.contents buf |> f __LINE__ "%S" in
 assert (x = "\x00\x00\x00\x3F\x00\x00\x00\x3F");
 Buffer.clear buf;
-Iconv.reset_out w;
-Iconv.output_substring w s 0 4;
-Iconv.end_out w;
+Iconv.Out_iconv.reset_out w;
+Iconv.Out_iconv.output_substring w s 0 4;
+Iconv.Out_iconv.end_out w;
 let x = Buffer.contents buf |> f __LINE__ "%S" in
 assert (x = "\x00\x02\xF8\x00");;
 
