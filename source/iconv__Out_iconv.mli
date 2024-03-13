@@ -1,7 +1,7 @@
 open Iconv
 
 type out_state
-type t = iconv_t * out_state
+type t = private iconv_t * out_state
 
 val open_out: tocode:string -> fromcode:string ->
 	(string -> int -> int -> unit) -> t
