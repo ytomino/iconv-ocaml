@@ -458,17 +458,18 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_iconv(value val_conv, value val_state, value val_finish)
+CAMLprim value mliconv_iconv(
+	value val_conv, value val_fields, value val_finish)
 {
-	CAMLparam3(val_conv, val_state, val_finish);
+	CAMLparam3(val_conv, val_fields, val_finish);
 	bool result = true;
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	char *inbuf_start = (char *)String_val(Field(val_state, 0));
-	char *inbuf = inbuf_start + Long_val(Field(val_state, 1));
-	size_t inbytesleft = Long_val(Field(val_state, 2));
-	char *outbuf_start = (char *)Bytes_val(Field(val_state, 3));
-	char *outbuf = outbuf_start + Long_val(Field(val_state, 4));
-	size_t outbytesleft = Long_val(Field(val_state, 5));
+	char *inbuf_start = (char *)String_val(Field(val_fields, 0));
+	char *inbuf = inbuf_start + Long_val(Field(val_fields, 1));
+	size_t inbytesleft = Long_val(Field(val_fields, 2));
+	char *outbuf_start = (char *)Bytes_val(Field(val_fields, 3));
+	char *outbuf = outbuf_start + Long_val(Field(val_fields, 4));
+	size_t outbytesleft = Long_val(Field(val_fields, 5));
 	while(inbytesleft > 0){
 		if(iconv(internal->handle, &inbuf, &inbytesleft, &outbuf, &outbytesleft)
 			== (size_t)-1)
@@ -495,21 +496,21 @@ CAMLprim value mliconv_iconv(value val_conv, value val_state, value val_finish)
 			}
 		}
 	}
-	Store_field(val_state, 1, Val_long(inbuf - inbuf_start));
-	Store_field(val_state, 2, Val_long(inbytesleft));
-	Store_field(val_state, 4, Val_long(outbuf - outbuf_start));
-	Store_field(val_state, 5, Val_long(outbytesleft));
+	Store_field(val_fields, 1, Val_long(inbuf - inbuf_start));
+	Store_field(val_fields, 2, Val_long(inbytesleft));
+	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
+	Store_field(val_fields, 5, Val_long(outbytesleft));
 	CAMLreturn(Val_bool(result));
 }
 
-CAMLprim value mliconv_iconv_end(value val_conv, value val_state)
+CAMLprim value mliconv_iconv_end(value val_conv, value val_fields)
 {
-	CAMLparam2(val_conv, val_state);
+	CAMLparam2(val_conv, val_fields);
 	bool result = true;
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	char *outbuf_start = (char *)Bytes_val(Field(val_state, 3));
-	char *outbuf = outbuf_start + Long_val(Field(val_state, 4));
-	size_t outbytesleft = Long_val(Field(val_state, 5));
+	char *outbuf_start = (char *)Bytes_val(Field(val_fields, 3));
+	char *outbuf = outbuf_start + Long_val(Field(val_fields, 4));
+	size_t outbytesleft = Long_val(Field(val_fields, 5));
 	if(iconv(internal->handle, NULL, NULL, &outbuf, &outbytesleft) == (size_t)-1){
 		int e = errno;
 		if(e == E2BIG){
@@ -518,8 +519,8 @@ CAMLprim value mliconv_iconv_end(value val_conv, value val_state)
 			caml_failwith(__func__);
 		}
 	}
-	Store_field(val_state, 4, Val_long(outbuf - outbuf_start));
-	Store_field(val_state, 5, Val_long(outbytesleft));
+	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
+	Store_field(val_fields, 5, Val_long(outbytesleft));
 	CAMLreturn(Val_bool(result));
 }
 
