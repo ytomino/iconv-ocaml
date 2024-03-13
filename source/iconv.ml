@@ -28,18 +28,33 @@ type iconv_fields = {
 	mutable outbytesleft: int
 };;
 
+let valid_in (fields: iconv_fields) = (
+	let {inbuf; inbuf_offset; inbytesleft; _} = fields in
+	inbuf_offset >= 0 && inbytesleft >= 0
+	&& inbuf_offset + inbytesleft <= String.length inbuf
+);;
+
+let valid_out (fields: iconv_fields) = (
+	let {outbuf; outbuf_offset; outbytesleft; _} = fields in
+	outbuf_offset >= 0 && outbytesleft >= 0
+	&& outbuf_offset + outbytesleft <= Bytes.length outbuf
+);;
+
+external unsafe_iconv: iconv_t -> iconv_fields -> bool ->
+	[> `ok | `overflow | `illegal_sequence] =
+	"mliconv_unsafe_iconv";;
+
+let iconv (cd: iconv_t) (fields: iconv_fields) (finish: bool) = (
+	if valid_in fields && valid_out fields then unsafe_iconv cd fields finish
+	else invalid_arg "Iconv.iconv" (* __FUNCTION__ *)
+);;
+
 external unsafe_iconv_substitute: iconv_t -> iconv_fields -> bool ->
 	[> `ok | `overflow] =
 	"mliconv_unsafe_iconv_substitute";;
 
 let iconv_substitute (cd: iconv_t) (fields: iconv_fields) (finish: bool) = (
-	let {inbuf; inbuf_offset; inbytesleft; outbuf; outbuf_offset; outbytesleft} =
-		fields
-	in
-	if inbuf_offset >= 0 && inbytesleft >= 0
-		&& inbuf_offset + inbytesleft <= String.length inbuf
-		&& outbuf_offset >= 0 && outbytesleft >= 0
-		&& outbuf_offset + outbytesleft <= Bytes.length outbuf
+	if valid_in fields && valid_out fields
 	then unsafe_iconv_substitute cd fields finish
 	else invalid_arg "Iconv.iconv_substitute" (* __FUNCTION__ *)
 );;
@@ -48,10 +63,7 @@ external unsafe_iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow] =
 	"mliconv_unsafe_iconv_end";;
 
 let iconv_end (cd: iconv_t) (fields: iconv_fields) = (
-	let {outbuf; outbuf_offset; outbytesleft; _} = fields in
-	if outbuf_offset >= 0 && outbytesleft >= 0
-		&& outbuf_offset + outbytesleft <= Bytes.length outbuf
-	then unsafe_iconv_end cd fields
+	if valid_out fields then unsafe_iconv_end cd fields
 	else invalid_arg "Iconv.iconv_end" (* __FUNCTION__ *)
 );;
 

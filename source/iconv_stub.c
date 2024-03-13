@@ -31,9 +31,34 @@
 /* polymorphic variants */
 
 enum {
+	Val_illegal_sequence = -0x699b4d2b, /* 0x9664b2d5 */
 	Val_ok = 0x0000c239,
 	Val_overflow = -0x7d88397b /* 0x8277c685 */
 };
+
+/* fields */
+
+struct iconv_field_s {
+	char *buf;
+	size_t bytesleft;
+};
+
+static void set_fields(
+	struct iconv_field_s *field, value val_fields, int field_offset)
+{
+	ptrdiff_t buf_offset = Long_val(Field(val_fields, field_offset + 1));
+	field->buf = (char *)Bytes_val(Field(val_fields, field_offset)) + buf_offset;
+	field->bytesleft = Long_val(Field(val_fields, field_offset + 2));
+}
+
+static void get_fields(
+	value val_fields, int field_offset, struct iconv_field_s const *field)
+{
+	ptrdiff_t buf_offset =
+		field->buf - (char *)Bytes_val(Field(val_fields, field_offset));
+	Store_field(val_fields, field_offset + 1, Val_long(buf_offset));
+	Store_field(val_fields, field_offset + 2, Val_long(field->bytesleft));
+}
 
 /* custom data */
 
@@ -475,21 +500,18 @@ CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 
 /* converting functions */
 
-CAMLprim value mliconv_unsafe_iconv_substitute(
+CAMLprim value mliconv_unsafe_iconv(
 	value val_conv, value val_fields, value val_finish)
 {
 	CAMLparam3(val_conv, val_fields, val_finish);
 	CAMLlocal1(val_result);
 	val_result = Val_ok;
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	char *inbuf_start = (char *)String_val(Field(val_fields, 0));
-	char *inbuf = inbuf_start + Long_val(Field(val_fields, 1));
-	size_t inbytesleft = Long_val(Field(val_fields, 2));
-	char *outbuf_start = (char *)Bytes_val(Field(val_fields, 3));
-	char *outbuf = outbuf_start + Long_val(Field(val_fields, 4));
-	size_t outbytesleft = Long_val(Field(val_fields, 5));
-	while(inbytesleft > 0){
-		if(iconv(internal->handle, &inbuf, &inbytesleft, &outbuf, &outbytesleft)
+	struct iconv_field_s in, out;
+	set_fields(&in, val_fields, 0);
+	set_fields(&out, val_fields, 3);
+	while(in.bytesleft > 0){
+		if(iconv(internal->handle, &in.buf, &in.bytesleft, &out.buf, &out.bytesleft)
 			== (size_t)-1)
 		{
 			int e = errno;
@@ -499,7 +521,40 @@ CAMLprim value mliconv_unsafe_iconv_substitute(
 			}else if(e == EINVAL && !Bool_val(val_finish)){ /* truncated */
 				break;
 			}else if(e == EILSEQ || e == EINVAL){
-				if(put_substitute(internal, &outbuf, &outbytesleft) < 0){
+				val_result = Val_illegal_sequence;
+				break;
+			}else{
+				caml_failwith(__func__);
+			}
+		}
+	}
+	get_fields(val_fields, 0, &in);
+	get_fields(val_fields, 3, &out);
+	CAMLreturn(val_result);
+}
+
+CAMLprim value mliconv_unsafe_iconv_substitute(
+	value val_conv, value val_fields, value val_finish)
+{
+	CAMLparam3(val_conv, val_fields, val_finish);
+	CAMLlocal1(val_result);
+	val_result = Val_ok;
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	struct iconv_field_s in, out;
+	set_fields(&in, val_fields, 0);
+	set_fields(&out, val_fields, 3);
+	while(in.bytesleft > 0){
+		if(iconv(internal->handle, &in.buf, &in.bytesleft, &out.buf, &out.bytesleft)
+			== (size_t)-1)
+		{
+			int e = errno;
+			if(e == E2BIG){
+				val_result = Val_overflow;
+				break;
+			}else if(e == EINVAL && !Bool_val(val_finish)){ /* truncated */
+				break;
+			}else if(e == EILSEQ || e == EINVAL){
+				if(put_substitute(internal, &out.buf, &out.bytesleft) < 0){
 					e = errno;
 					if(e == E2BIG){
 						val_result = Val_overflow;
@@ -508,16 +563,14 @@ CAMLprim value mliconv_unsafe_iconv_substitute(
 						caml_failwith(__func__);
 					}
 				}
-				skip_min_sequence(internal, &inbuf, &inbytesleft);
+				skip_min_sequence(internal, &in.buf, &in.bytesleft);
 			}else{
 				caml_failwith(__func__);
 			}
 		}
 	}
-	Store_field(val_fields, 1, Val_long(inbuf - inbuf_start));
-	Store_field(val_fields, 2, Val_long(inbytesleft));
-	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
-	Store_field(val_fields, 5, Val_long(outbytesleft));
+	get_fields(val_fields, 0, &in);
+	get_fields(val_fields, 3, &out);
 	CAMLreturn(val_result);
 }
 
@@ -527,10 +580,11 @@ CAMLprim value mliconv_unsafe_iconv_end(value val_conv, value val_fields)
 	CAMLlocal1(val_result);
 	val_result = Val_ok;
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	char *outbuf_start = (char *)Bytes_val(Field(val_fields, 3));
-	char *outbuf = outbuf_start + Long_val(Field(val_fields, 4));
-	size_t outbytesleft = Long_val(Field(val_fields, 5));
-	if(iconv(internal->handle, NULL, NULL, &outbuf, &outbytesleft) == (size_t)-1){
+	struct iconv_field_s out;
+	set_fields(&out, val_fields, 3);
+	if(iconv(internal->handle, NULL, NULL, &out.buf, &out.bytesleft)
+		== (size_t)-1)
+	{
 		int e = errno;
 		if(e == E2BIG){
 			val_result = Val_overflow;
@@ -538,8 +592,7 @@ CAMLprim value mliconv_unsafe_iconv_end(value val_conv, value val_fields)
 			caml_failwith(__func__);
 		}
 	}
-	Store_field(val_fields, 4, Val_long(outbuf - outbuf_start));
-	Store_field(val_fields, 5, Val_long(outbytesleft));
+	get_fields(val_fields, 3, &out);
 	CAMLreturn(val_result);
 }
 
