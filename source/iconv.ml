@@ -32,21 +32,21 @@ external force_substitute: iconv_t -> bool = "mliconv_force_substitute";;
 external set_force_substitute: iconv_t -> bool -> unit =
 	"mliconv_set_force_substitute";;
 
-type out_state = {
+type iconv_fields = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;
 	mutable inbytesleft: int;
 	mutable outbuf: bytes;
 	mutable outbuf_offset: int;
-	mutable outbytesleft: int;
-	f: (string -> int -> int -> unit)
+	mutable outbytesleft: int
 };;
 
-type out_iconv = iconv_t * out_state;;
-
-external iconv: iconv_t -> out_state -> bool -> bool = "mliconv_iconv";;
-external iconv_end: iconv_t -> out_state -> bool = "mliconv_iconv_end";;
+external iconv: iconv_t -> iconv_fields -> bool -> bool = "mliconv_iconv";;
+external iconv_end: iconv_t -> iconv_fields -> bool = "mliconv_iconv_end";;
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
+
+type out_state = iconv_fields * (string -> int -> int -> unit);;
+type out_iconv = iconv_t * out_state;;
 
 let outbuf_capacity = 240;;
 
@@ -54,51 +54,53 @@ let open_out ~(tocode: string) ~(fromcode: string)
 	(f: string -> int -> int -> unit) =
 (
 	let cd = iconv_open ~tocode ~fromcode in
-	cd, {
-		inbuf = "";
-		inbuf_offset = 0;
-		inbytesleft = 0;
-		outbuf = Bytes.create outbuf_capacity;
-		outbuf_offset = 0;
-		outbytesleft = outbuf_capacity;
-		f
-	}
+	cd, (
+		{
+			inbuf = "";
+			inbuf_offset = 0;
+			inbytesleft = 0;
+			outbuf = Bytes.create outbuf_capacity;
+			outbuf_offset = 0;
+			outbytesleft = outbuf_capacity;
+		}, f
+	)
 );;
 
-let do_flush (state: out_state) = (
-		let out_length = state.outbuf_offset in
+let do_flush (fields, f: out_state) = (
+		let out_length = fields.outbuf_offset in
 		if out_length > 0 then (
-			state.f (Bytes.unsafe_to_string state.outbuf) 0 out_length;
-			let outbuf_length = Bytes.length state.outbuf in
-			state.outbuf_offset <- 0;
-			state.outbuf <- Bytes.create outbuf_length;
-			state.outbytesleft <- outbuf_length
+			f (Bytes.unsafe_to_string fields.outbuf) 0 out_length;
+			let outbuf_length = Bytes.length fields.outbuf in
+			fields.outbuf_offset <- 0;
+			fields.outbuf <- Bytes.create outbuf_length;
+			fields.outbytesleft <- outbuf_length
 		)
 );;
 
 let unsafe_output_substring: out_iconv -> string -> int -> int -> unit =
 	let rec loop oi = (
 		let cd, state = oi in
-		if iconv cd state false then ()
+		let fields, _ = state in
+		if iconv cd fields false then ()
 		else (
 			do_flush state;
 			loop oi
 		)
 	) in
 	fun oi s offset len ->
-	let _, state = oi in
-	if state.inbytesleft = 0 then (
-		state.inbuf <- s;
-		state.inbuf_offset <- offset;
-		state.inbytesleft <- len
+	let _, (fields, _) = oi in
+	if fields.inbytesleft = 0 then (
+		fields.inbuf <- s;
+		fields.inbuf_offset <- offset;
+		fields.inbytesleft <- len
 	) else (
-		let inbuf_length = state.inbytesleft + len in
+		let inbuf_length = fields.inbytesleft + len in
 		let inbuf = Bytes.create inbuf_length in
-		Bytes.blit_string state.inbuf state.inbuf_offset inbuf 0 state.inbytesleft;
-		Bytes.blit_string s offset inbuf state.inbytesleft len;
-		state.inbuf <- Bytes.unsafe_to_string inbuf;
-		state.inbuf_offset <- 0;
-		state.inbytesleft <- inbuf_length
+		Bytes.blit_string fields.inbuf fields.inbuf_offset inbuf 0 fields.inbytesleft;
+		Bytes.blit_string s offset inbuf fields.inbytesleft len;
+		fields.inbuf <- Bytes.unsafe_to_string inbuf;
+		fields.inbuf_offset <- 0;
+		fields.inbytesleft <- inbuf_length
 	);
 	loop oi;;
 
@@ -118,31 +120,33 @@ let flush (_, state: out_iconv) = (
 
 let end_out (cd, state: out_iconv) = (
 	let loc = "Iconv.end_out" (* __FUNCTION__ *) in
-	if state.inbytesleft > 0 && not (iconv cd state true) then (
+	let fields, f = state in
+	if fields.inbytesleft > 0 && not (iconv cd fields true) then (
 		do_flush state;
-		if not (iconv cd state true) then failwith loc
+		if not (iconv cd fields true) then failwith loc
 	);
-	assert (state.inbytesleft = 0);
-	if not (iconv_end cd state) then (
+	assert (fields.inbytesleft = 0);
+	if not (iconv_end cd fields) then (
 		do_flush state;
-		if not (iconv_end cd state) then failwith loc
+		if not (iconv_end cd fields) then failwith loc
 	);
 	(* No need to reset the output buffer for reuse. *)
-	let out_length = state.outbuf_offset in
+	let out_length = fields.outbuf_offset in
 	if out_length > 0 then (
-		state.f (Bytes.unsafe_to_string state.outbuf) 0 out_length;
-		state.outbuf <- Bytes.empty;
-		state.outbytesleft <- 0
+		f (Bytes.unsafe_to_string fields.outbuf) 0 out_length;
+		fields.outbuf <- Bytes.empty;
+		fields.outbytesleft <- 0
 	)
 );;
 
 let reset_out (cd, state: out_iconv) = (
 	iconv_reset cd;
-	state.inbytesleft <- 0;
+	let fields, _ = state in
+	fields.inbytesleft <- 0;
 	(* Restore from the ended state. *)
-	state.outbuf_offset <- 0;
-	if Bytes.length state.outbuf <> outbuf_capacity then (
-		state.outbuf <- Bytes.create outbuf_capacity
+	fields.outbuf_offset <- 0;
+	if Bytes.length fields.outbuf <> outbuf_capacity then (
+		fields.outbuf <- Bytes.create outbuf_capacity
 	);
-	state.outbytesleft <- outbuf_capacity
+	fields.outbytesleft <- outbuf_capacity
 );;
