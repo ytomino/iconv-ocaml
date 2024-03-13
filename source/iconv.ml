@@ -12,6 +12,13 @@ type iconv_t;;
 external iconv_open: tocode:string -> fromcode:string -> iconv_t =
 	"mliconv_open";;
 
+external substitute: iconv_t -> string = "mliconv_substitute";;
+external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute";;
+
+external force_substitute: iconv_t -> bool = "mliconv_force_substitute";;
+external set_force_substitute: iconv_t -> bool -> unit =
+	"mliconv_set_force_substitute";;
+
 external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
 	"mliconv_unsafe_iconv_substring";;
 
@@ -24,13 +31,6 @@ let iconv_substring (cd: iconv_t) (s: string) (pos: int) (len: int) = (
 let iconv_string (cd: iconv_t) (s: string) = (
 	unsafe_iconv_substring cd s 0 (String.length s)
 );;
-
-external substitute: iconv_t -> string = "mliconv_substitute";;
-external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute";;
-
-external force_substitute: iconv_t -> bool = "mliconv_force_substitute";;
-external set_force_substitute: iconv_t -> bool -> unit =
-	"mliconv_set_force_substitute";;
 
 type iconv_fields = {
 	mutable inbuf: string;
