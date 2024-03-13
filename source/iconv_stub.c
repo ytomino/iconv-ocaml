@@ -376,7 +376,7 @@ CAMLprim value mliconv_get_version_opt(value val_unit)
 	CAMLreturn(val_result);
 }
 
-/* converting functions */
+/* open and setting functions */
 
 CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 {
@@ -414,6 +414,59 @@ CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 	internal->min_sequence_in_fromcode = -1;
 	CAMLreturn(val_result);
 }
+
+CAMLprim value mliconv_substitute(value val_conv)
+{
+	CAMLparam1(val_conv);
+	CAMLlocal1(val_result);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char const *substitute;
+	size_t substitute_length;
+	get_substitute(internal, &substitute, &substitute_length);
+	val_result = caml_alloc_initialized_string(substitute_length, substitute);
+	CAMLreturn(val_result);
+}
+
+CAMLprim value mliconv_set_substitute(value val_conv, value val_substitute)
+{
+	CAMLparam2(val_conv, val_substitute);
+	size_t substitute_length = caml_string_length(val_substitute);
+	if(substitute_length > MAX_SEQUENCE){
+		caml_invalid_argument(__func__); /* too long */
+	}
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	char const *substitute = (char *)String_val(val_substitute);
+	internal->substitute_length = substitute_length;
+	memcpy(internal->substitute, substitute, substitute_length);
+	CAMLreturn(Val_unit);
+}
+
+CAMLprim value mliconv_force_substitute(value val_conv)
+{
+	CAMLparam1(val_conv);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	bool result = get_force_substitute(internal);
+	CAMLreturn(Val_bool(result));
+}
+
+CAMLprim value mliconv_set_force_substitute(value val_conv, value val_enabled)
+{
+	CAMLparam2(val_conv, val_enabled);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	bool enabled = Bool_val(val_enabled);
+	set_force_substitute(internal, enabled);
+	CAMLreturn(Val_unit);
+}
+
+CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
+{
+	CAMLparam1(val_conv);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	size_t result = get_min_sequence_in_fromcode(internal);
+	CAMLreturn(Val_long((long)result));
+}
+
+/* converting functions */
 
 CAMLprim value mliconv_unsafe_iconv_substring(
 	value val_conv, value val_source, value val_pos, value val_len)
@@ -534,6 +587,8 @@ CAMLprim value mliconv_iconv_reset(value val_conv)
 	CAMLreturn(Val_unit);
 }
 
+/* for pretty printer */
+
 CAMLprim value mliconv_tocode(value val_conv)
 {
 	CAMLparam1(val_conv);
@@ -550,55 +605,4 @@ CAMLprim value mliconv_fromcode(value val_conv)
 	struct mliconv_t *internal = mliconv_val(val_conv);
 	val_result = caml_copy_string(internal->fromcode);
 	CAMLreturn(val_result);
-}
-
-CAMLprim value mliconv_substitute(value val_conv)
-{
-	CAMLparam1(val_conv);
-	CAMLlocal1(val_result);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	char const *substitute;
-	size_t substitute_length;
-	get_substitute(internal, &substitute, &substitute_length);
-	val_result = caml_alloc_initialized_string(substitute_length, substitute);
-	CAMLreturn(val_result);
-}
-
-CAMLprim value mliconv_set_substitute(value val_conv, value val_substitute)
-{
-	CAMLparam2(val_conv, val_substitute);
-	size_t substitute_length = caml_string_length(val_substitute);
-	if(substitute_length > MAX_SEQUENCE){
-		caml_invalid_argument(__func__); /* too long */
-	}
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	char const *substitute = (char *)String_val(val_substitute);
-	internal->substitute_length = substitute_length;
-	memcpy(internal->substitute, substitute, substitute_length);
-	CAMLreturn(Val_unit);
-}
-
-CAMLprim value mliconv_force_substitute(value val_conv)
-{
-	CAMLparam1(val_conv);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	bool result = get_force_substitute(internal);
-	CAMLreturn(Val_bool(result));
-}
-
-CAMLprim value mliconv_set_force_substitute(value val_conv, value val_enabled)
-{
-	CAMLparam2(val_conv, val_enabled);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	bool enabled = Bool_val(val_enabled);
-	set_force_substitute(internal, enabled);
-	CAMLreturn(Val_unit);
-}
-
-CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
-{
-	CAMLparam1(val_conv);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	size_t result = get_min_sequence_in_fromcode(internal);
-	CAMLreturn(Val_long((long)result));
 }
