@@ -468,49 +468,6 @@ CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 
 /* converting functions */
 
-CAMLprim value mliconv_unsafe_iconv_substring(
-	value val_conv, value val_source, value val_pos, value val_len)
-{
-	CAMLparam2(val_conv, val_source);
-	CAMLlocal2(val_result, val_d);
-	size_t s_len = Long_val(val_len);
-	size_t d_len = s_len * MAX_SEQUENCE;
-	val_d = caml_alloc_string(d_len);
-	struct mliconv_t *internal = mliconv_val(val_conv);
-	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
-	char *d = (char *)Bytes_val(val_d);
-	char *d_current = d;
-	bool failed = false;
-	while(s_len > 0){
-		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
-			int e = errno;
-			if(e == EILSEQ || e == EINVAL){
-				if(put_substitute(internal, &d_current, &d_len) < 0){
-					/* like E2BIG */
-					failed = true;
-					break;
-				}
-				skip_min_sequence(internal, &s, &s_len);
-			}else{
-				failed = true;
-				break;
-			}
-		}
-	}
-	if(!failed
-		&& iconv(internal->handle, NULL, NULL, &d_current, &d_len) == (size_t)-1)
-	{
-		failed = true;
-	}
-	if(failed){
-		iconv(internal->handle, NULL, NULL, NULL, NULL);
-		caml_failwith(__func__);
-	}
-	size_t result_len = d_current - d;
-	val_result = caml_alloc_initialized_string(result_len, d);
-	CAMLreturn(val_result);
-}
-
 CAMLprim value mliconv_iconv(
 	value val_conv, value val_fields, value val_finish)
 {
@@ -585,6 +542,49 @@ CAMLprim value mliconv_iconv_reset(value val_conv)
 		caml_failwith(__func__);
 	}
 	CAMLreturn(Val_unit);
+}
+
+CAMLprim value mliconv_unsafe_iconv_substring(
+	value val_conv, value val_source, value val_pos, value val_len)
+{
+	CAMLparam2(val_conv, val_source);
+	CAMLlocal2(val_result, val_d);
+	size_t s_len = Long_val(val_len);
+	size_t d_len = s_len * MAX_SEQUENCE;
+	val_d = caml_alloc_string(d_len);
+	struct mliconv_t *internal = mliconv_val(val_conv);
+	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
+	char *d = (char *)Bytes_val(val_d);
+	char *d_current = d;
+	bool failed = false;
+	while(s_len > 0){
+		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
+			int e = errno;
+			if(e == EILSEQ || e == EINVAL){
+				if(put_substitute(internal, &d_current, &d_len) < 0){
+					/* like E2BIG */
+					failed = true;
+					break;
+				}
+				skip_min_sequence(internal, &s, &s_len);
+			}else{
+				failed = true;
+				break;
+			}
+		}
+	}
+	if(!failed
+		&& iconv(internal->handle, NULL, NULL, &d_current, &d_len) == (size_t)-1)
+	{
+		failed = true;
+	}
+	if(failed){
+		iconv(internal->handle, NULL, NULL, NULL, NULL);
+		caml_failwith(__func__);
+	}
+	size_t result_len = d_current - d;
+	val_result = caml_alloc_initialized_string(result_len, d);
+	CAMLreturn(val_result);
 }
 
 /* for pretty printer */
