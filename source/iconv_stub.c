@@ -468,7 +468,7 @@ CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 
 /* converting functions */
 
-CAMLprim value mliconv_iconv(
+CAMLprim value mliconv_iconv_substitute(
 	value val_conv, value val_fields, value val_finish)
 {
 	CAMLparam3(val_conv, val_fields, val_finish);
