@@ -1,7 +1,7 @@
 open Iconv;;
 
 type out_state = iconv_fields * (string -> int -> int -> unit);;
-type out_iconv = iconv_t * out_state;;
+type t = iconv_t * out_state;;
 
 let outbuf_capacity = 240;;
 
@@ -32,7 +32,7 @@ let do_flush (fields, f: out_state) = (
 		)
 );;
 
-let unsafe_output_substring: out_iconv -> string -> int -> int -> unit =
+let unsafe_output_substring: t -> string -> int -> int -> unit =
 	let rec loop oi = (
 		let cd, state = oi in
 		let fields, _ = state in
@@ -60,21 +60,21 @@ let unsafe_output_substring: out_iconv -> string -> int -> int -> unit =
 	);
 	loop oi;;
 
-let output_substring (oi: out_iconv) (s: string) (offset: int) (len: int) = (
+let output_substring (oi: t) (s: string) (offset: int) (len: int) = (
 	if offset >= 0 && len >= 0 && offset + len <= String.length s
 	then unsafe_output_substring oi s offset len
 	else invalid_arg "Iconv.output_substring" (* __FUNCTION__ *)
 );;
 
-let output_string (oi: out_iconv) (s: string) = (
+let output_string (oi: t) (s: string) = (
 	unsafe_output_substring oi s 0 (String.length s)
 );;
 
-let flush (_, state: out_iconv) = (
+let flush (_, state: t) = (
 	do_flush state
 );;
 
-let end_out (cd, state: out_iconv) = (
+let end_out (cd, state: t) = (
 	let loc = "Iconv.end_out" (* __FUNCTION__ *) in
 	let fields, f = state in
 	if fields.inbytesleft > 0 then (
@@ -110,7 +110,7 @@ let end_out (cd, state: out_iconv) = (
 	)
 );;
 
-let reset_out (cd, state: out_iconv) = (
+let reset_out (cd, state: t) = (
 	iconv_reset cd;
 	let fields, _ = state in
 	fields.inbytesleft <- 0;
