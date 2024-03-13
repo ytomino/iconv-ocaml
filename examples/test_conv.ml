@@ -28,15 +28,16 @@ assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
 (* out_iconv *)
 
 let buf = Buffer.create 256 in
-let w = Iconv.open_out ~tocode:"ISO-2022-JP" ~fromcode:"UTF-16BE"
-	(Buffer.add_substring buf)
+let w =
+	Out_iconv.open_out ~tocode:"ISO-2022-JP" ~fromcode:"UTF-16BE"
+		(Buffer.add_substring buf)
 in
 Iconv.set_force_substitute (fst w) true;
 let s = "\x00\x41\x30\x42\x00\xA0" in (* U+00A0 will be substituted *)
 for i = 0 to String.length s - 1 do
-	Iconv.output_substring w s i 1
+	Out_iconv.output_substring w s i 1
 done;
-Iconv.end_out w;
+Out_iconv.end_out w;
 let x = Buffer.contents buf |> f __LINE__ "%S" in
 assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42\x3F");;
 
