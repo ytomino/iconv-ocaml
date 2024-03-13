@@ -20,6 +20,19 @@ external set_force_substitute: iconv_t -> bool -> unit =
     [tocode] if [false].
     It is always [true] in GNU libiconv or glibc. *)
 
+type iconv_fields = {
+	mutable inbuf: string;
+	mutable inbuf_offset: int;
+	mutable inbytesleft: int;
+	mutable outbuf: bytes;
+	mutable outbuf_offset: int;
+	mutable outbytesleft: int
+}
+
+val iconv_substitute: iconv_t -> iconv_fields -> bool -> [> `ok | `overflow]
+val iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow]
+external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset"
+
 val iconv_substring: iconv_t -> string -> int -> int -> string
 val iconv_string: iconv_t -> string -> string
 
