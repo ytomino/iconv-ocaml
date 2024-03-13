@@ -28,9 +28,11 @@ type iconv_fields = {
 	mutable outbytesleft: int
 };;
 
-external iconv_substitute: iconv_t -> iconv_fields -> bool -> bool =
+external iconv_substitute: iconv_t -> iconv_fields -> bool ->
+	[> `ok | `overflow] =
 	"mliconv_iconv_substitute";;
-external iconv_end: iconv_t -> iconv_fields -> bool = "mliconv_iconv_end";;
+external iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow] =
+	"mliconv_iconv_end";;
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
 
 external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
@@ -82,11 +84,12 @@ let unsafe_output_substring: out_iconv -> string -> int -> int -> unit =
 	let rec loop oi = (
 		let cd, state = oi in
 		let fields, _ = state in
-		if iconv_substitute cd fields false then ()
-		else (
+		match iconv_substitute cd fields false with
+		| `ok ->
+			()
+		| `overflow ->
 			do_flush state;
 			loop oi
-		)
 	) in
 	fun oi s offset len ->
 	let _, (fields, _) = oi in
@@ -122,15 +125,30 @@ let flush (_, state: out_iconv) = (
 let end_out (cd, state: out_iconv) = (
 	let loc = "Iconv.end_out" (* __FUNCTION__ *) in
 	let fields, f = state in
-	if fields.inbytesleft > 0 && not (iconv_substitute cd fields true) then (
-		do_flush state;
-		if not (iconv_substitute cd fields true) then failwith loc
+	if fields.inbytesleft > 0 then (
+		match iconv_substitute cd fields true with
+		| `ok ->
+			()
+		| `overflow ->
+			do_flush state;
+			match iconv_substitute cd fields true with
+			| `ok ->
+				()
+			| `overflow ->
+				failwith loc
 	);
 	assert (fields.inbytesleft = 0);
-	if not (iconv_end cd fields) then (
+	begin match iconv_end cd fields with
+	| `ok ->
+		()
+	| `overflow ->
 		do_flush state;
-		if not (iconv_end cd fields) then failwith loc
-	);
+		match iconv_end cd fields with
+		| `ok ->
+			()
+		| `overflow ->
+			failwith loc
+	end;
 	(* No need to reset the output buffer for reuse. *)
 	let out_length = fields.outbuf_offset in
 	if out_length > 0 then (
