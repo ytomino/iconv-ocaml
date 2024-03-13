@@ -29,6 +29,8 @@ type iconv_fields = {
 	mutable outbytesleft: int
 }
 
+val iconv: iconv_t -> iconv_fields -> bool ->
+	[> `ok | `overflow | `illegal_sequence]
 val iconv_substitute: iconv_t -> iconv_fields -> bool -> [> `ok | `overflow]
 val iconv_end: iconv_t -> iconv_fields -> [> `ok | `overflow]
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset"
