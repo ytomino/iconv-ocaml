@@ -475,7 +475,7 @@ CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 
 /* converting functions */
 
-CAMLprim value mliconv_iconv_substitute(
+CAMLprim value mliconv_unsafe_iconv_substitute(
 	value val_conv, value val_fields, value val_finish)
 {
 	CAMLparam3(val_conv, val_fields, val_finish);
@@ -521,7 +521,7 @@ CAMLprim value mliconv_iconv_substitute(
 	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_iconv_end(value val_conv, value val_fields)
+CAMLprim value mliconv_unsafe_iconv_end(value val_conv, value val_fields)
 {
 	CAMLparam2(val_conv, val_fields);
 	CAMLlocal1(val_result);
