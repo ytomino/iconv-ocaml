@@ -31,6 +31,7 @@
 /* polymorphic variants */
 
 enum {
+	Val_auto = -0x7f124121, /* 0x80edbedf */
 	Val_illegal_sequence = -0x699b4d2b, /* 0x9664b2d5 */
 	Val_ok = 0x0000c239,
 	Val_overflow = -0x7d88397b /* 0x8277c685 */
@@ -83,8 +84,8 @@ static void get_substitute(
 	struct mliconv_t *internal,
 	char const **substitute,
 	size_t *substitute_length);
-static bool get_force_substitute(struct mliconv_t *internal);
-static void set_force_substitute(struct mliconv_t *internal, bool enabled);
+static bool get_unexist(struct mliconv_t *internal);
+static void set_unexist(struct mliconv_t *internal, bool ilseq);
 
 static void mliconv_finalize(value v);
 #if defined(SUPPORT_COMPARISON)
@@ -149,9 +150,9 @@ static int mliconv_compare(value v1, value v2)
 			if(result == 0){
 				result = right_substitute_length - left_substitute_length;
 				if(result == 0){
-					bool left_force_substitute = get_force_substitute(left_internal);
-					bool right_force_substitute = get_force_substitute(right_internal);
-					result = right_force_substitute - left_force_substitute;
+					bool left_unexist = get_unexist(left_internal);
+					bool right_unexist = get_unexist(right_internal);
+					result = right_unexist - left_unexist;
 				}
 			}
 		}
@@ -188,7 +189,7 @@ static void mliconv_serialize(
 	if(internal->substitute_length > 0){
 		caml_serialize_block_1(internal->substitute, internal->substitute_length);
 	}
-	caml_serialize_int_1(get_force_substitute(internal));
+	caml_serialize_int_1(get_unexist(internal));
 	CAMLreturn0;
 }
 
@@ -228,7 +229,7 @@ static unsigned long mliconv_deserialize(void *dst)
 		caml_deserialize_block_1(internal->substitute, internal->substitute_length);
 	}
 	internal->min_sequence_in_fromcode = -1;
-	set_force_substitute(internal, caml_deserialize_uint_1());
+	set_unexist(internal, caml_deserialize_uint_1());
 	CAMLreturnT(unsigned long, sizeof(struct mliconv_t));
 }
 
@@ -292,7 +293,7 @@ static void get_substitute(
 	*substitute_length = result_substitute_length;
 }
 
-static bool get_force_substitute(
+static bool get_unexist(
 	__attribute__((unused)) struct mliconv_t *internal)
 {
 	bool result;
@@ -309,12 +310,12 @@ static bool get_force_substitute(
 	return result;
 }
 
-static void set_force_substitute(
+static void set_unexist(
 	__attribute__((unused)) struct mliconv_t *internal,
-	__attribute__((unused)) bool enabled)
+	__attribute__((unused)) bool ilseq)
 {
 #if !defined(_LIBICONV_VERSION) && defined(__FreeBSD__) && __FreeBSD__ >= 10
-	int arg = enabled;
+	int arg = ilseq;
 	if(iconvctl(internal->handle, ICONV_SET_ILSEQ_INVALID, &arg) < 0){
 		caml_failwith(__func__);
 	}
@@ -473,20 +474,20 @@ CAMLprim value mliconv_set_substitute(value val_conv, value val_substitute)
 	CAMLreturn(Val_unit);
 }
 
-CAMLprim value mliconv_force_substitute(value val_conv)
+CAMLprim value mliconv_unexist(value val_conv)
 {
 	CAMLparam1(val_conv);
+	CAMLlocal1(val_result);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	bool result = get_force_substitute(internal);
-	CAMLreturn(Val_bool(result));
+	val_result = get_unexist(internal) ? Val_illegal_sequence : Val_auto;
+	CAMLreturn(val_result);
 }
 
-CAMLprim value mliconv_set_force_substitute(value val_conv, value val_enabled)
+CAMLprim value mliconv_set_unexist(value val_conv, value val_x)
 {
-	CAMLparam2(val_conv, val_enabled);
+	CAMLparam2(val_conv, val_x);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	bool enabled = Bool_val(val_enabled);
-	set_force_substitute(internal, enabled);
+	set_unexist(internal, val_x == Val_illegal_sequence);
 	CAMLreturn(Val_unit);
 }
 
