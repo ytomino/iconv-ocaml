@@ -9,9 +9,6 @@ type iconv_t
 external iconv_open: tocode:string -> fromcode:string -> iconv_t =
 	"mliconv_open"
 
-val iconv_substring: iconv_t -> string -> int -> int -> string
-val iconv_string: iconv_t -> string -> string
-
 external substitute: iconv_t -> string = "mliconv_substitute"
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute"
 
@@ -22,6 +19,9 @@ external set_force_substitute: iconv_t -> bool -> unit =
     Citrus iconv internally substitutes valid characters does not exist in
     [tocode] if [false].
     It is always [true] in GNU libiconv or glibc. *)
+
+val iconv_substring: iconv_t -> string -> int -> int -> string
+val iconv_string: iconv_t -> string -> string
 
 type out_state
 type out_iconv = iconv_t * out_state
