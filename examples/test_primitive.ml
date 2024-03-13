@@ -13,7 +13,7 @@ let output_result oc x = (
 open Iconv;;
 
 let c = iconv_open ~tocode:"UTF-32BE" ~fromcode:"UTF-8" in
-set_force_substitute c true;
+set_unexist c `illegal_sequence;
 (* iconv *)
 let fields = {
 	inbuf = "A";

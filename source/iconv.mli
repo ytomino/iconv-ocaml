@@ -12,13 +12,14 @@ external iconv_open: tocode:string -> fromcode:string -> iconv_t =
 external substitute: iconv_t -> string = "mliconv_substitute"
 external set_substitute: iconv_t -> string -> unit = "mliconv_set_substitute"
 
-external force_substitute: iconv_t -> bool = "mliconv_force_substitute"
-external set_force_substitute: iconv_t -> bool -> unit =
-	"mliconv_set_force_substitute"
+external unexist: iconv_t -> [> `auto | `illegal_sequence] =
+	"mliconv_unexist"
+external set_unexist: iconv_t -> [< `auto | `illegal_sequence] -> unit =
+	"mliconv_set_unexist"
 (** Correspond to [ICONV_SET_ILSEQ_INVALID] of Citrus.
     Citrus iconv internally substitutes valid characters does not exist in
-    [tocode] if [false].
-    It is always [true] in GNU libiconv or glibc. *)
+    [tocode] if [`auto].
+    It is always [`illegal_sequence] in GNU libiconv or glibc. *)
 
 type iconv_fields = {
 	mutable inbuf: string;

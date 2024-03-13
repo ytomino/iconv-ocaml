@@ -13,7 +13,7 @@ let marshal (x: 'a) = (
 let check_marshal (x: iconv_t) = (
 	let y = marshal x in
 	tocode x = tocode y && fromcode y = fromcode y
-	&& substitute x = substitute y && force_substitute x = force_substitute y
+	&& substitute x = substitute y && unexist x = unexist y
 );;
 
 let c = iconv_open ~tocode:"sjis" ~fromcode:"euc-jp" in

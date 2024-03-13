@@ -7,13 +7,13 @@ let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-8" in
 let m = min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
 assert (m = 1);
 Iconv.set_substitute iconv "-"; (* That customize substitution text. *)
-if not (Iconv.force_substitute iconv) then (
+if Iconv.unexist iconv = `auto then (
 	let x = Iconv.iconv_string iconv "\xC4\x80" |> f __LINE__ "%S" in
 	assert (x = "?")
 	(* When Citrus internally substitution is active, that can skip best length,
 	   but application can not customize substitution text. *)
 );
-Iconv.set_force_substitute iconv true;
+Iconv.set_unexist iconv `illegal_sequence;
 let x = Iconv.iconv_string iconv "\xC4\x80" |> f __LINE__ "%S" in
 assert (x = "--");;
 	(* That is customized text.

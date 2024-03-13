@@ -32,7 +32,7 @@ let w =
 	Out_iconv.open_out ~tocode:"ISO-2022-JP" ~fromcode:"UTF-16BE"
 		(Buffer.add_substring buf)
 in
-set_force_substitute (fst (w :> iconv_t * Out_iconv.out_state)) true;
+set_unexist (fst (w :> iconv_t * Out_iconv.out_state)) `illegal_sequence;
 let s = "\x00\x41\x30\x42\x00\xA0" in (* U+00A0 will be substituted *)
 for i = 0 to String.length s - 1 do
 	Out_iconv.output_substring w s i 1
