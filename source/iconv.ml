@@ -19,19 +19,6 @@ external force_substitute: iconv_t -> bool = "mliconv_force_substitute";;
 external set_force_substitute: iconv_t -> bool -> unit =
 	"mliconv_set_force_substitute";;
 
-external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
-	"mliconv_unsafe_iconv_substring";;
-
-let iconv_substring (cd: iconv_t) (s: string) (pos: int) (len: int) = (
-	if pos >= 0 && len >= 0 && pos + len <= String.length s
-	then unsafe_iconv_substring cd s pos len
-	else invalid_arg "Iconv.iconv_substring" (* __FUNCTION__ *)
-);;
-
-let iconv_string (cd: iconv_t) (s: string) = (
-	unsafe_iconv_substring cd s 0 (String.length s)
-);;
-
 type iconv_fields = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;
@@ -44,6 +31,19 @@ type iconv_fields = {
 external iconv: iconv_t -> iconv_fields -> bool -> bool = "mliconv_iconv";;
 external iconv_end: iconv_t -> iconv_fields -> bool = "mliconv_iconv_end";;
 external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset";;
+
+external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
+	"mliconv_unsafe_iconv_substring";;
+
+let iconv_substring (cd: iconv_t) (s: string) (pos: int) (len: int) = (
+	if pos >= 0 && len >= 0 && pos + len <= String.length s
+	then unsafe_iconv_substring cd s pos len
+	else invalid_arg "Iconv.iconv_substring" (* __FUNCTION__ *)
+);;
+
+let iconv_string (cd: iconv_t) (s: string) = (
+	unsafe_iconv_substring cd s 0 (String.length s)
+);;
 
 type out_state = iconv_fields * (string -> int -> int -> unit);;
 type out_iconv = iconv_t * out_state;;
