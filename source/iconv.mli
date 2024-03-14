@@ -21,6 +21,9 @@ external set_unexist: iconv_t -> [< `auto | `illegal_sequence] -> unit =
     [tocode] if [`auto].
     It is always [`illegal_sequence] in GNU libiconv or glibc. *)
 
+external min_sequence_in_fromcode: iconv_t -> int =
+	"mliconv_min_sequence_in_fromcode"
+
 type iconv_fields = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;
