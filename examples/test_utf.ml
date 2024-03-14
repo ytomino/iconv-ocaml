@@ -1,10 +1,7 @@
 let f fmt = Lib_test.f __FILE__ fmt;;
 
-external min_sequence_in_fromcode: Iconv.iconv_t -> int =
-	"mliconv_min_sequence_in_fromcode";;
-
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-8" in
-let m = min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
+let m = Iconv.min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
 assert (m = 1);
 Iconv.set_substitute iconv "-"; (* That customize substitution text. *)
 if Iconv.unexist iconv = `auto then (
@@ -20,13 +17,13 @@ assert (x = "--");;
 	   A fallback handler is needed to return "?". *)
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-16BE" in
-let m = min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
+let m = Iconv.min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
 assert (m = 2);
 let x = Iconv.iconv_string iconv "\x01\x00" |> f __LINE__ "%S" in
 assert (x = "?");;
 
 let iconv = Iconv.iconv_open ~tocode:"LATIN1" ~fromcode:"UTF-32BE" in
-let m = min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
+let m = Iconv.min_sequence_in_fromcode iconv |> f __LINE__ "%d" in
 assert (m = 4);
 let x = Iconv.iconv_string iconv "\x00\x00\x01\x00" |> f __LINE__ "%S" in
 assert (x = "?");;

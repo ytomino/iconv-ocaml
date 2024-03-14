@@ -20,6 +20,9 @@ external unexist: iconv_t -> [> `auto | `illegal_sequence] =
 external set_unexist: iconv_t -> [< `auto | `illegal_sequence] -> unit =
 	"mliconv_set_unexist";;
 
+external min_sequence_in_fromcode: iconv_t -> int =
+	"mliconv_min_sequence_in_fromcode";;
+
 type iconv_fields = {
 	mutable inbuf: string;
 	mutable inbuf_offset: int;
