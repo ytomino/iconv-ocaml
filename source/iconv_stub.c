@@ -6,6 +6,7 @@
 #include <caml/fail.h>
 #include <caml/custom.h>
 #include <caml/intext.h>
+#include <caml/signals.h>
 
 #include <errno.h>
 #include <iconv.h>
@@ -44,19 +45,31 @@ struct iconv_field_s {
 	size_t bytesleft;
 };
 
+static void set_buf(
+	struct iconv_field_s *field, value val_fields, int field_offset,
+	ptrdiff_t buf_offset)
+{
+	field->buf = (char *)Bytes_val(Field(val_fields, field_offset)) + buf_offset;
+}
+
 static void set_fields(
 	struct iconv_field_s *field, value val_fields, int field_offset)
 {
 	ptrdiff_t buf_offset = Long_val(Field(val_fields, field_offset + 1));
-	field->buf = (char *)Bytes_val(Field(val_fields, field_offset)) + buf_offset;
+	set_buf(field, val_fields, field_offset, buf_offset);
 	field->bytesleft = Long_val(Field(val_fields, field_offset + 2));
+}
+
+static ptrdiff_t get_buf_offset(
+	value val_fields, int field_offset, struct iconv_field_s const *field)
+{
+	return field->buf - (char *)Bytes_val(Field(val_fields, field_offset));
 }
 
 static void get_fields(
 	value val_fields, int field_offset, struct iconv_field_s const *field)
 {
-	ptrdiff_t buf_offset =
-		field->buf - (char *)Bytes_val(Field(val_fields, field_offset));
+	ptrdiff_t buf_offset = get_buf_offset(val_fields, field_offset, field);
 	Store_field(val_fields, field_offset + 1, Val_long(buf_offset));
 	Store_field(val_fields, field_offset + 2, Val_long(field->bytesleft));
 }
@@ -81,9 +94,7 @@ static inline struct mliconv_t *mliconv_val(value v)
 }
 
 static void get_substitute(
-	struct mliconv_t *internal,
-	char const **substitute,
-	size_t *substitute_length);
+	char const *tocode, char *substitute, int_least8_t *substitute_length);
 static bool get_unexist(struct mliconv_t *internal);
 static void set_unexist(struct mliconv_t *internal, bool ilseq);
 
@@ -120,7 +131,9 @@ static void mliconv_finalize(value v)
 {
 	CAMLparam1(v);
 	struct mliconv_t *internal = mliconv_val(v);
-	iconv_close(internal->handle);
+	if(internal->handle != NULL){
+		iconv_close(internal->handle);
+	}
 	caml_stat_free(internal->tocode);
 	caml_stat_free(internal->fromcode);
 	CAMLreturn0;
@@ -137,18 +150,25 @@ static int mliconv_compare(value v1, value v2)
 	if(result == 0){
 		result = strcmp(left_internal->fromcode, right_internal->fromcode);
 		if(result == 0){
-			char const *left_substitute;
-			size_t left_substitute_length;
-			char const *right_substitute;
-			size_t right_substitute_length;
-			get_substitute(left_internal, &left_substitute, &left_substitute_length);
-			get_substitute(right_internal, &right_substitute, &right_substitute_length);
-			size_t min_substitute_length =
-				(left_substitute_length < right_substitute_length) ? left_substitute_length :
-				right_substitute_length;
-			result = memcmp(left_substitute, right_substitute, min_substitute_length);
+			if(left_internal->substitute_length < 0){
+				get_substitute(
+					left_internal->tocode, left_internal->substitute,
+					&left_internal->substitute_length);
+			}
+			if(right_internal->substitute_length < 0){
+				get_substitute(
+					right_internal->tocode, right_internal->substitute,
+					&right_internal->substitute_length);
+			}
+			int_least8_t min_substitute_length =
+				(left_internal->substitute_length < right_internal->substitute_length) ?
+				left_internal->substitute_length :
+				right_internal->substitute_length;
+			result = memcmp(
+				left_internal->substitute, right_internal->substitute,
+				(size_t)min_substitute_length);
 			if(result == 0){
-				result = right_substitute_length - left_substitute_length;
+				result = right_internal->substitute_length - left_internal->substitute_length;
 				if(result == 0){
 					bool left_unexist = get_unexist(left_internal);
 					bool right_unexist = get_unexist(right_internal);
@@ -272,25 +292,17 @@ static int convert_one_sequence(
 static char latin1[] = "ISO-8859-1";
 
 static void get_substitute(
-	struct mliconv_t *internal,
-	char const **substitute,
-	size_t *substitute_length)
+	char const *tocode, char *substitute, int_least8_t *substitute_length)
 {
-	int_least8_t result_substitute_length = internal->substitute_length;
-	if(result_substitute_length < 0){
-		char *d = internal->substitute;
-		size_t d_len = MAX_SEQUENCE;
-		if(convert_one_sequence(internal->tocode, latin1, '?', &d, &d_len) < 0){
-			/* error case */
-			internal->substitute[0] = '?';
-			result_substitute_length = 1;
-		}else{
-			result_substitute_length = MAX_SEQUENCE - d_len;
-		}
-		internal->substitute_length = result_substitute_length;
+	char *d = substitute;
+	size_t d_len = MAX_SEQUENCE;
+	if(convert_one_sequence(tocode, latin1, '?', &d, &d_len) < 0){
+		/* error case */
+		substitute[0] = '?';
+		*substitute_length = 1;
+	}else{
+		*substitute_length = MAX_SEQUENCE - d_len;
 	}
-	*substitute = internal->substitute;
-	*substitute_length = result_substitute_length;
 }
 
 static bool get_unexist(
@@ -323,20 +335,18 @@ static void set_unexist(
 }
 
 static int put_substitute(
-	struct mliconv_t *internal, char **outbuf, size_t *outbytesleft)
+	iconv_t handle, char const *substitute, int_least8_t substitute_length,
+	char **outbuf, size_t *outbytesleft)
 {
 	int result;
-	char const *substitute;
-	size_t substitute_length;
-	get_substitute(internal, &substitute, &substitute_length);
 	if(substitute_length == 0){
 		result = 0;
 	}else{
 		char *ob2 = *outbuf;
 		size_t obl2 = *outbytesleft;
-		if(iconv(internal->handle, NULL, NULL, &ob2, &obl2) == (size_t)-1){
+		if(iconv(handle, NULL, NULL, &ob2, &obl2) == (size_t)-1){
 			result = -1; /* error */
-		}else if(obl2 < substitute_length){
+		}else if(obl2 < (size_t)substitute_length){
 			errno = E2BIG;
 			result = -1; /* error */
 		}else{
@@ -351,41 +361,37 @@ static int put_substitute(
 	return result;
 }
 
-static size_t get_min_sequence_in_fromcode(struct mliconv_t *internal)
+static int_least8_t get_min_sequence_in_fromcode(char const *fromcode)
 {
-	int_least8_t min_sequence_in_fromcode = internal->min_sequence_in_fromcode;
-	if(min_sequence_in_fromcode < 0){
-		char outbuffer[MAX_SEQUENCE];
-		char *d = outbuffer;
-		size_t d_len = MAX_SEQUENCE;
-		if(convert_one_sequence(
-			internal->fromcode,
-			latin1,
-			'\0', /* assume '\0' is minimal in all encodings */
-			&d,
-			&d_len) < 0)
-		{
-			/* error case */
-			min_sequence_in_fromcode = 1;
-		}else{
-			size_t used = MAX_SEQUENCE - d_len;
-			min_sequence_in_fromcode = (used > 0) ? used : 1;
-		}
-		internal->min_sequence_in_fromcode = min_sequence_in_fromcode;
+	int_least8_t min_sequence_in_fromcode;
+	char outbuffer[MAX_SEQUENCE];
+	char *d = outbuffer;
+	size_t d_len = MAX_SEQUENCE;
+	if(convert_one_sequence(
+		fromcode,
+		latin1,
+		'\0', /* assume '\0' is minimal in all encodings */
+		&d,
+		&d_len) < 0)
+	{
+		/* error case */
+		min_sequence_in_fromcode = 1;
+	}else{
+		size_t used = MAX_SEQUENCE - d_len;
+		min_sequence_in_fromcode = (used > 0) ? used : 1;
 	}
 	return min_sequence_in_fromcode;
 }
 
 static void skip_min_sequence(
-	struct mliconv_t *internal, char **inbuf, size_t *inbytesleft)
+	int_least8_t min_sequence_in_fromcode, char **inbuf, size_t *inbytesleft)
 {
-	size_t min_sequence_in_fromcode = get_min_sequence_in_fromcode(internal);
-	if(*inbytesleft < min_sequence_in_fromcode){
+	if(*inbytesleft < (size_t)min_sequence_in_fromcode){
 		*inbuf += *inbytesleft;
 		*inbytesleft = 0;
 	}else{
-		*inbuf += min_sequence_in_fromcode;
-		*inbytesleft -= min_sequence_in_fromcode;
+		*inbuf += (ptrdiff_t)min_sequence_in_fromcode;
+		*inbytesleft -= (ptrdiff_t)min_sequence_in_fromcode;
 	}
 }
 
@@ -415,34 +421,44 @@ CAMLprim value mliconv_open(value val_tocode, value val_fromcode)
 {
 	CAMLparam2(val_tocode, val_fromcode);
 	CAMLlocal1(val_result);
+	/* Do caml_alloc_custom at first because _noexc-version does not exist. */
+	val_result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
+	struct mliconv_t *internal = mliconv_val(val_result);
+	internal->handle = NULL;
+	internal->tocode = NULL;
+	internal->fromcode = NULL;
 	const char *tocode = String_val(val_tocode);
 	size_t to_len = caml_string_length(val_tocode);
 	const char *fromcode = String_val(val_fromcode);
 	size_t from_len = caml_string_length(val_fromcode);
-	iconv_t handle = iconv_open(tocode, fromcode);
-	if(handle == (iconv_t)-1){
-		char message[to_len + from_len + 128];
-		strcat(
-			strcat(
-				strcat(strcat(strcpy(message, __func__), ": failed iconv_open to "), tocode),
-				" from "),
-			fromcode);
-		caml_failwith(message);
-	}
-	val_result = caml_alloc_custom(&iconv_ops, sizeof(struct mliconv_t), 0, 1);
-	struct mliconv_t *internal = mliconv_val(val_result);
-	internal->handle = handle;
-	internal->tocode = NULL; /* for the case that caml_stat_strdup fails */
-	internal->fromcode = NULL; /* same as above */
-	/* Recall String_val because caml_alloc_custom can occur heap compaction. */
-	tocode = String_val(val_tocode);
-	fromcode = String_val(val_fromcode);
 #if !defined(__GNU_LIBRARY__) || defined(_LIBICONV_VERSION)
 	tocode = iconv_canonicalize(tocode);
 	fromcode = iconv_canonicalize(fromcode);
 #endif
-	internal->tocode = caml_stat_strdup(tocode);
-	internal->fromcode = caml_stat_strdup(fromcode);
+	char *stat_tocode = caml_stat_strdup(tocode);
+	internal->tocode = stat_tocode;
+	char *stat_fromcode = caml_stat_strdup(fromcode);
+	internal->fromcode = stat_fromcode;
+	caml_enter_blocking_section();
+	iconv_t handle = iconv_open(stat_tocode, stat_fromcode);
+	caml_leave_blocking_section();
+	if(handle == (iconv_t)-1){
+		char message[to_len + from_len + 128];
+		strcat(
+			strcat(
+				strcat(
+					strcat(strcpy(message, __func__), ": failed iconv_open to "), stat_tocode),
+				" from "),
+			stat_fromcode);
+		caml_stat_free(stat_tocode);
+		caml_stat_free(stat_fromcode);
+		caml_failwith(message);
+	}
+	/* The pointer to OCaml heap cannot be kept across blocking sections. */
+	internal = mliconv_val(val_result);
+	internal->handle = handle;
+	internal->tocode = stat_tocode;
+	internal->fromcode = stat_fromcode;
 	internal->substitute_length = -1;
 	internal->min_sequence_in_fromcode = -1;
 	CAMLreturn(val_result);
@@ -453,10 +469,20 @@ CAMLprim value mliconv_substitute(value val_conv)
 	CAMLparam1(val_conv);
 	CAMLlocal1(val_result);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	char const *substitute;
-	size_t substitute_length;
-	get_substitute(internal, &substitute, &substitute_length);
-	val_result = caml_alloc_initialized_string(substitute_length, substitute);
+	int_least8_t substitute_length = internal->substitute_length;
+	if(substitute_length < 0){
+		char *tocode = internal->tocode;
+		char substitute[MAX_SEQUENCE];
+		caml_enter_blocking_section();
+		get_substitute(tocode, substitute, &substitute_length);
+		caml_leave_blocking_section();
+		/* The pointer to OCaml heap cannot be kept across blocking sections. */
+		internal = mliconv_val(val_conv);
+		memcpy(internal->substitute, substitute, substitute_length);
+		internal->substitute_length = substitute_length;
+	}
+	val_result = caml_alloc_initialized_string(
+		substitute_length, internal->substitute);
 	CAMLreturn(val_result);
 }
 
@@ -495,7 +521,16 @@ CAMLprim value mliconv_min_sequence_in_fromcode(value val_conv)
 {
 	CAMLparam1(val_conv);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	size_t result = get_min_sequence_in_fromcode(internal);
+	int_least8_t result = internal->min_sequence_in_fromcode;
+	if(result < 0){
+		char *fromcode = internal->fromcode;
+		caml_enter_blocking_section();
+		result = get_min_sequence_in_fromcode(fromcode);
+		caml_leave_blocking_section();
+		/* The pointer to OCaml heap cannot be kept across blocking sections. */
+		internal = mliconv_val(val_conv);
+		internal->min_sequence_in_fromcode = result;
+	}
 	CAMLreturn(Val_long((long)result));
 }
 
@@ -555,7 +590,40 @@ CAMLprim value mliconv_unsafe_iconv_substitute(
 			}else if(e == EINVAL && !Bool_val(val_finish)){ /* truncated */
 				break;
 			}else if(e == EILSEQ || e == EINVAL){
-				if(put_substitute(internal, &out.buf, &out.bytesleft) < 0){
+				int_least8_t substitute_length = internal->substitute_length;
+				int_least8_t min_sequence_in_fromcode = internal->min_sequence_in_fromcode;
+				if(substitute_length < 0 || min_sequence_in_fromcode < 0){
+					intptr_t inbuf_offset = get_buf_offset(val_fields, 0, &in);
+					intptr_t outbuf_offset = get_buf_offset(val_fields, 3, &out);
+					char *tocode = internal->tocode;
+					char *fromcode = internal->fromcode;
+					char substitute[MAX_SEQUENCE];
+					caml_enter_blocking_section();
+					if(substitute_length < 0){
+						get_substitute(tocode, substitute, &substitute_length);
+					}
+					if(min_sequence_in_fromcode < 0){
+						min_sequence_in_fromcode = get_min_sequence_in_fromcode(fromcode);
+					}
+					caml_leave_blocking_section();
+					/* The pointer to OCaml heap cannot be kept across blocking sections. */
+					internal = mliconv_val(val_conv);
+					if(internal->substitute_length < 0){
+						internal->substitute_length = substitute_length;
+						memcpy(internal->substitute, substitute, substitute_length);
+					}
+					if(internal->min_sequence_in_fromcode < 0){
+						internal->min_sequence_in_fromcode = min_sequence_in_fromcode;
+					}
+					set_buf(&in, val_fields, 0, inbuf_offset);
+					set_buf(&out, val_fields, 3, outbuf_offset);
+				}
+				if(
+					put_substitute(
+						internal->handle, internal->substitute, substitute_length, &out.buf,
+						&out.bytesleft)
+					< 0)
+				{
 					e = errno;
 					if(e == E2BIG){
 						val_result = Val_overflow;
@@ -564,7 +632,7 @@ CAMLprim value mliconv_unsafe_iconv_substitute(
 						caml_failwith(__func__);
 					}
 				}
-				skip_min_sequence(internal, &in.buf, &in.bytesleft);
+				skip_min_sequence(min_sequence_in_fromcode, &in.buf, &in.bytesleft);
 			}else{
 				caml_failwith(__func__);
 			}
@@ -616,20 +684,57 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 	size_t d_len = s_len * MAX_SEQUENCE;
 	val_d = caml_alloc_string(d_len);
 	struct mliconv_t *internal = mliconv_val(val_conv);
-	/* const */ char *s = (char *)String_val(val_source) + Long_val(val_pos);
+	/* const */ char *s = (char *)String_val(val_source);
+	/* const */ char *s_current = s + Long_val(val_pos);
 	char *d = (char *)Bytes_val(val_d);
 	char *d_current = d;
 	bool failed = false;
 	while(s_len > 0){
-		if(iconv(internal->handle, &s, &s_len, &d_current, &d_len) == (size_t)-1){
+		if(iconv(internal->handle, &s_current, &s_len, &d_current, &d_len)
+			== (size_t)-1)
+		{
 			int e = errno;
 			if(e == EILSEQ || e == EINVAL){
-				if(put_substitute(internal, &d_current, &d_len) < 0){
+				int_least8_t substitute_length = internal->substitute_length;
+				int_least8_t min_sequence_in_fromcode = internal->min_sequence_in_fromcode;
+				if(substitute_length < 0 || min_sequence_in_fromcode < 0){
+					intptr_t inbuf_offset = s_current - s;
+					intptr_t outbuf_offset = d_current - d;
+					char *tocode = internal->tocode;
+					char *fromcode = internal->fromcode;
+					char substitute[MAX_SEQUENCE];
+					caml_enter_blocking_section();
+					if(substitute_length < 0){
+						get_substitute(tocode, substitute, &substitute_length);
+					}
+					if(min_sequence_in_fromcode < 0){
+						min_sequence_in_fromcode = get_min_sequence_in_fromcode(fromcode);
+					}
+					caml_leave_blocking_section();
+					/* The pointer to OCaml heap cannot be kept across blocking sections. */
+					internal = mliconv_val(val_conv);
+					if(internal->substitute_length < 0){
+						internal->substitute_length = substitute_length;
+						memcpy(internal->substitute, substitute, substitute_length);
+					}
+					if(internal->min_sequence_in_fromcode < 0){
+						internal->min_sequence_in_fromcode = min_sequence_in_fromcode;
+					}
+					s = (char *)String_val(val_source);
+					d = (char *)Bytes_val(val_d);
+					s_current = s + inbuf_offset;
+					d_current = d + outbuf_offset;
+				}
+				if(
+					put_substitute(
+						internal->handle, internal->substitute, substitute_length, &d_current, &d_len)
+					< 0)
+				{
 					/* like E2BIG */
 					failed = true;
 					break;
 				}
-				skip_min_sequence(internal, &s, &s_len);
+				skip_min_sequence(min_sequence_in_fromcode, &s_current, &s_len);
 			}else{
 				failed = true;
 				break;
