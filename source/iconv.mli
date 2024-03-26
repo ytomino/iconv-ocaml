@@ -42,4 +42,15 @@ external iconv_reset: iconv_t -> unit = "mliconv_iconv_reset"
 val iconv_substring: iconv_t -> string -> int -> int -> string
 val iconv_string: iconv_t -> string -> string
 
+type iconv_decode_state
+type iconv_decode = private iconv_t * iconv_decode_state
+
+val iconv_open_decode: fromcode:string -> iconv_decode
+
+type iconv_decode_error = [`illegal_sequence | `none | `truncated]
+
+val iconv_decode: iconv_decode -> ('a -> 'b -> char) -> ('a -> 'b -> 'b) ->
+	('a -> 'b -> bool) -> ('a -> 'b -> 'b -> Uchar.t -> 'c) ->
+	fail:('a -> 'b -> 'b -> [> iconv_decode_error] -> 'c) -> 'a -> 'b -> 'c
+
 module Out_iconv = Iconv__Out_iconv

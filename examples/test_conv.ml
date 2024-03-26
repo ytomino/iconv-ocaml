@@ -1,8 +1,13 @@
 let f fmt = Lib_test.f __FILE__ fmt;;
+let fa a = Lib_test.fa __FILE__ a;;
+
+let output_uchar oc x = (
+	Printf.fprintf oc "U+%.4x" (Uchar.to_int x)
+);;
 
 open Iconv;;
 
-let c = iconv_open ~tocode:"sjis" ~fromcode:"utf-8";;
+let c = iconv_open ~tocode:"sjis" ~fromcode:"utf-8" in
 let s = "ソースコード直書きのUTF-8文字列です\n" in
 let x = iconv_string c s |> f __LINE__ "%S" in
 assert (
@@ -24,6 +29,170 @@ let c = iconv_open ~tocode:"ISO-2022-JP" ~fromcode:"UTF-8" in
 let s = "Aあ" in
 let x = iconv_string c s |> f __LINE__ "%S" in
 assert (x = "\x41\x1B\x24\x42\x24\x22\x1B\x28\x42");;
+
+(* decode *)
+
+let d = iconv_open_decode ~fromcode:"EUC-JP" in
+set_unexist (fst (d :> iconv_t * iconv_decode_state)) `illegal_sequence;
+let c: Uchar.t =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ start_pos end_pos c ->
+			assert (
+				start_pos |> f __LINE__ "%d" = 0
+				&& end_pos |> f __LINE__ "%d" = 1
+			);
+			c |> fa __LINE__ output_uchar
+		)
+		~fail:(fun _ _ _ _ -> assert false) "A$" 0
+in
+assert (Uchar.to_int c = Char.code 'A');
+let c: Uchar.t =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ start_pos end_pos c ->
+			assert (
+				start_pos |> f __LINE__ "%d" = 0
+				&& end_pos |> f __LINE__ "%d" = 2
+			);
+			c |> fa __LINE__ output_uchar
+		)
+		~fail:(fun _ _ _ _ -> assert false) "\xa3\xc1$" 0
+in
+assert (Uchar.to_int c = 0xff21);
+let () =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ _ _ -> assert false)
+		~fail:(fun _ start_pos end_pos error ->
+			match error with
+			| `truncated ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 1
+				)
+			| `illegal_sequence | `none ->
+				assert false
+		)
+		"\xa3" 0
+in
+let () =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ _ _ -> assert false)
+		~fail:(fun _ start_pos end_pos error ->
+			match error with
+			| `illegal_sequence ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 1
+				)
+			| `none | `truncated ->
+				assert false
+		)
+		"\xa3\x00" 0
+in
+();;
+
+let d = iconv_open_decode ~fromcode:"ISO-2022-JP" in
+set_unexist (fst (d :> iconv_t * iconv_decode_state)) `illegal_sequence;
+(* The output is none but it switches to JIS X 0208 by escape sequence. *)
+let () =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ _ _ -> assert false)
+		~fail:(fun _ start_pos end_pos error ->
+			match error with
+			| `none ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 3
+				)
+			| `illegal_sequence | `truncated ->
+				assert false
+		)
+		"\x1b\x24\x42" 0
+in
+(* In JIS X 0208. *)
+let c: Uchar.t =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ start_pos end_pos c ->
+			assert (
+				start_pos |> f __LINE__ "%d" = 0
+				&& end_pos |> f __LINE__ "%d" = 2);
+			c |> fa __LINE__ output_uchar
+		)
+		~fail:(fun _ _ _ _ -> assert false)
+		"\x23\x41" 0
+in
+assert (Uchar.to_int c = 0xff21);
+(* From multi-bytes to multi-codepoints. *)
+let rest: int =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ start_pos end_pos c ->
+			assert (
+				start_pos |> f __LINE__ "%d" = 0
+				&& (
+					end_pos |> f __LINE__ "%d" = 2 (* Citrus *)
+					|| end_pos = 3 (* glibc *)
+				)
+			);
+			assert (c |> fa __LINE__ output_uchar = Uchar.of_int 0x1b);
+			end_pos - 1 (* behind of "\x1b" is/are queued *)
+		)
+		~fail:(fun _ start_pos end_pos error ->
+			match error with
+			| `illegal_sequence ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 1 (* GNU libiconv *)
+				);
+				0 (* no queued *)
+			| `none | `truncated ->
+				assert false
+		)
+		"\x1b\x01\x02" 0
+in
+for i = 1 to rest do
+	let c: Uchar.t =
+		iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+			(fun _ start_pos end_pos c ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 0
+				);
+				c |> fa __LINE__ output_uchar
+			)
+			~fail:(fun _ _ _ _ -> assert false)
+			"" 0 (* use the rest of previous conversion  *)
+	in
+	assert (Uchar.to_int c = i)
+done;
+(* Detect truncated, and end of the revious sequence. *)
+let () =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ _ _ -> assert false)
+		~fail:(fun _ start_pos end_pos error ->
+			match error with
+			| `truncated ->
+				assert (
+					start_pos |> f __LINE__ "%d" = 0
+					&& end_pos |> f __LINE__ "%d" = 1
+				)
+			| `illegal_sequence | `none ->
+				assert false
+		)
+		"\x24" 0
+in
+(* Confirm the normal state in JIS X 0208. *)
+let c: Uchar.t =
+	iconv_decode d String.get (fun _ -> succ) (fun s i -> String.length s <= i)
+		(fun _ start_pos end_pos c ->
+			assert (
+				start_pos |> f __LINE__ "%d" = 0
+				&& end_pos |> f __LINE__ "%d" = 2
+			);
+			c |> fa __LINE__ output_uchar
+		)
+		~fail:(fun _ _ _ _ -> assert false)
+		"\x24\x22" 0
+in
+assert (Uchar.to_int c = 0x3042);;
 
 (* out_iconv *)
 
