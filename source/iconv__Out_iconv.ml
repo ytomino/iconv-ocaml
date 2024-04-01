@@ -61,7 +61,7 @@ let unsafe_output_substring: t -> string -> int -> int -> unit =
 	loop oi;;
 
 let output_substring (oi: t) (s: string) (offset: int) (len: int) = (
-	if offset >= 0 && len >= 0 && offset + len <= String.length s
+	if offset >= 0 && len >= 0 && len <= String.length s - offset
 	then unsafe_output_substring oi s offset len
 	else invalid_arg "Iconv.output_substring" (* __FUNCTION__ *)
 );;

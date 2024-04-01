@@ -35,13 +35,13 @@ type iconv_fields = {
 let valid_in (fields: iconv_fields) = (
 	let {inbuf; inbuf_offset; inbytesleft; _} = fields in
 	inbuf_offset >= 0 && inbytesleft >= 0
-	&& inbuf_offset + inbytesleft <= String.length inbuf
+	&& inbytesleft <= String.length inbuf - inbuf_offset
 );;
 
 let valid_out (fields: iconv_fields) = (
 	let {outbuf; outbuf_offset; outbytesleft; _} = fields in
 	outbuf_offset >= 0 && outbytesleft >= 0
-	&& outbuf_offset + outbytesleft <= Bytes.length outbuf
+	&& outbytesleft <= Bytes.length outbuf - outbuf_offset
 );;
 
 external unsafe_iconv: iconv_t -> iconv_fields -> bool ->
@@ -77,7 +77,7 @@ external unsafe_iconv_substring: iconv_t -> string -> int -> int -> string =
 	"mliconv_unsafe_iconv_substring";;
 
 let iconv_substring (cd: iconv_t) (s: string) (pos: int) (len: int) = (
-	if pos >= 0 && len >= 0 && pos + len <= String.length s
+	if pos >= 0 && len >= 0 && len <= String.length s - pos
 	then unsafe_iconv_substring cd s pos len
 	else invalid_arg "Iconv.iconv_substring" (* __FUNCTION__ *)
 );;
