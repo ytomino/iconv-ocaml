@@ -481,8 +481,9 @@ CAMLprim value mliconv_substitute(value val_conv)
 		memcpy(internal->substitute, substitute, substitute_length);
 		internal->substitute_length = substitute_length;
 	}
-	val_result = caml_alloc_initialized_string(
-		substitute_length, internal->substitute);
+	val_result = caml_alloc_string(substitute_length);
+	internal = mliconv_val(val_conv); /* across OCaml allocation */
+	memcpy(Bytes_val(val_result), internal->substitute, substitute_length);
 	CAMLreturn(val_result);
 }
 
@@ -751,7 +752,9 @@ CAMLprim value mliconv_unsafe_iconv_substring(
 		caml_failwith(__func__);
 	}
 	size_t result_len = d_current - d;
-	val_result = caml_alloc_initialized_string(result_len, d);
+	val_result = caml_alloc_string(result_len);
+	d = (char *)Bytes_val(val_d); /* across OCaml allocation */
+	memcpy(Bytes_val(val_result), d, result_len);
 	CAMLreturn(val_result);
 }
 
